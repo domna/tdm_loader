@@ -616,7 +616,8 @@ class ReadTDM(object):
         # this will need to be adjusted to work with strings
         # "endianness" doesn't matter, so NumPy uses the '|' symbol
         return self._endian + DTYPE_CONVERTERS[tdm_dtype]
-       
+
+
 class ChannelData(object):
     """Stores data about a single data channel.
     """

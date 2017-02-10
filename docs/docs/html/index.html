@@ -1,0 +1,292 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to tdm_loader’s documentation! &mdash; tdm_loader 1.1.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.1.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="tdm_loader 1.1.4 documentation" href="#" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="#">tdm_loader 1.1.4 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-tdm-loader-s-documentation">
+<h1>Welcome to tdm_loader&#8217;s documentation!<a class="headerlink" href="#welcome-to-tdm-loader-s-documentation" title="Permalink to this headline">¶</a></h1>
+<p>Contents:</p>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<dl class="class">
+<dt id="tdm_loader.tdm_loader.OpenFile">
+<em class="property">class </em><code class="descclassname">tdm_loader.tdm_loader.</code><code class="descname">OpenFile</code><span class="sig-paren">(</span><em>tdm_path</em>, <em>tdx_path=''</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for opening a National Instruments TDM/TDX file.</p>
+<dl class="docutils">
+<dt>tdm_path</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">str</span><dd>The full path to the .TDM file.</dd>
+<dt>tdx_path</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">str, Optional</span><dd>The full path to the .TDX file.  If not present, it will be assumed the
+TDX file is located in the same directory as the .TDM file, and the
+filename specified in the .TDM file will be used.</dd>
+</dl>
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel">
+<code class="descname">channel</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em>, <em>occurrence=0</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a data channel by its channel group and channel index.</p>
+<dl class="docutils">
+<dt>channel_group</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int or str</span><dd>The index or name of the channel group.</dd>
+<dt>channel</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel inside the group.</dd>
+<dt>occurrence</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>Gives the nth occurence of the channel group name. By default the first occurence is returned. 
+This parameter is only used when channel_group is given as a string.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel_group_index">
+<code class="descname">channel_group_index</code><span class="sig-paren">(</span><em>channel_group_name</em>, <em>occurrence=0</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel_group_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the index of a channel group with the given name.</p>
+<dl class="docutils">
+<dt>channel_group_name</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">str</span><dd>The name of the channel group.</dd>
+<dt>occurrence</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>Gives the nth occurrence of the channel group name. By default the first occurrence is returned.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel_group_name">
+<code class="descname">channel_group_name</code><span class="sig-paren">(</span><em>channel_group</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel_group_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the channel group at the channel group index.</p>
+<dl class="docutils">
+<dt>channel_group</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel group.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel_group_search">
+<code class="descname">channel_group_search</code><span class="sig-paren">(</span><em>search_term</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel_group_search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of channel group names that contain <code class="docutils literal"><span class="pre">search</span> <span class="pre">term</span></code>.
+Results are independent of case and spaces in the channel name.</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>search_term</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">str</span><dd>The term to search for in the channel group names</dd>
+</dl>
+</div></blockquote>
+<dl class="docutils">
+<dt>found_terms</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">list of (str, int)</span><dd>Returns the found channel group names as tuple of full name and channel group index.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel_name">
+<code class="descname">channel_name</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the channel at given channel group and channel indices.</p>
+<dl class="docutils">
+<dt>channel_group</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel group.</dd>
+<dt>channel</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel inside the group.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel_search">
+<code class="descname">channel_search</code><span class="sig-paren">(</span><em>search_term</em>, <em>return_column=False</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel_search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of channel names that contain <code class="docutils literal"><span class="pre">search</span> <span class="pre">term</span></code>.
+Results are independent of case and spaces in the channel name.</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>search_term</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">str</span><dd>The term to search for in the channel names</dd>
+<dt>return_column</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">bool</span><dd>If True the function returns the column index instead of channel group and channel indices</dd>
+</dl>
+</div></blockquote>
+<dl class="docutils">
+<dt>found_terms</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">list of (str, int, int) or list of (str, int) (latter case for return_column = True)</span><dd>Returns the found channel names as tuple of full name and column index or channel group and channel indices
+depending on the value of return_column.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.channel_unit">
+<code class="descname">channel_unit</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel_unit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the unit of the channel at given channel group and channel indices.</p>
+<dl class="docutils">
+<dt>channel_group</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel group.</dd>
+<dt>channel</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel inside the group.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the file.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.col">
+<code class="descname">col</code><span class="sig-paren">(</span><em>column_number</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.col" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a data column by its index number.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.get_channel_indices">
+<code class="descname">get_channel_indices</code><span class="sig-paren">(</span><em>column_index</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.get_channel_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the channel group and channel indices of given column index.</p>
+<dl class="docutils">
+<dt>column_index</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the column.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.get_column_index">
+<code class="descname">get_column_index</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.get_column_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the column index of given channel group and channel indices.</p>
+<dl class="docutils">
+<dt>channel_group</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel group.</dd>
+<dt>channel</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel inside the group.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.no_channel_groups">
+<code class="descname">no_channel_groups</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.no_channel_groups" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the total number of channel groups.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.no_channels">
+<code class="descname">no_channels</code><span class="sig-paren">(</span><em>channel_group</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.no_channels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the total number of channels inside the given channel group.</p>
+<dl class="docutils">
+<dt>channel_group</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">int</span><dd>The index of the channel group.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="tdm_loader.tdm_loader.OpenFile.plot_channels">
+<code class="descname">plot_channels</code><span class="sig-paren">(</span><em>x</em>, <em>ys</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.plot_channels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot multiple channels.</p>
+<dl class="docutils">
+<dt>x</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">(int, int)</span><dd>The channel group / channel indices combination of a single channel to plot on the x-axis.</dd>
+<dt>ys</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">list of (int, int)</span><dd>A list of multiple channel group / channel indices to plot on the y-axis.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="tdm_loader.tdm_loader.ReadTDM">
+<em class="property">class </em><code class="descclassname">tdm_loader.tdm_loader.</code><code class="descname">ReadTDM</code><span class="sig-paren">(</span><em>tdm_path</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.ReadTDM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for parsing and storing data from a .TDM file.</p>
+<dl class="docutils">
+<dt>tdm_path</dt>
+ <span class="classifier-delimiter">:</span> <span class="classifier">str</span><dd>The full path to the .TDM file.</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to tdm_loader&#8217;s documentation!</a></li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="#">tdm_loader 1.1.4 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2017, Florian Dobener.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
+    </div>
+  </body>
+</html>
