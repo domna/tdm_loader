@@ -113,6 +113,15 @@ class TestTDMLoader(TestCase):
     def test_no_of_channel_groups(self):
         self.assertEqual(self.data.no_channel_groups(), 2)
 
+    def test_no_of_channels(self):
+        self.assertEqual(self.data.no_channels(0), 3)
+        self.assertEqual(self.data.no_channels(1), 2)
+        self.assertEqual(self.data.no_channels(-1), 2)
+        self.assertEqual(self.data.no_channels(-2), 3)
+        self.assertRaises(IndexError, self.data.no_channels, -3)
+        self.assertRaises(TypeError, self.data.no_channels, 1.0)
+        self.assertRaises(IndexError, self.data.no_channels, 5)
+
     def test_len(self):
         self.assertEqual(len(self.data), 5)
 
@@ -138,14 +147,19 @@ class TestTDMLoader(TestCase):
         self.assertRaises(IndexError, self.data.col, 5)
         self.assertRaises(IndexError, self.data.col, -6)
 
-    def test_no_of_channels(self):
-        self.assertEqual(self.data.no_channels(0), 3)
-        self.assertEqual(self.data.no_channels(1), 2)
-        self.assertEqual(self.data.no_channels(-1), 2)
-        self.assertEqual(self.data.no_channels(-2), 3)
-        self.assertRaises(IndexError, self.data.no_channels, -3)
-        self.assertRaises(TypeError, self.data.no_channels, 1.0)
-        self.assertRaises(IndexError, self.data.no_channels, 5)
+    def test_get_channels(self):
+        self.assertEqual(self.data.get_channel_indices(0), (0, 0))
+        self.assertEqual(self.data.get_channel_indices(1), (0, 1))
+        self.assertEqual(self.data.get_channel_indices(2), (0, 2))
+        self.assertEqual(self.data.get_channel_indices(3), (1, 0))
+        self.assertEqual(self.data.get_channel_indices(4), (1, 1))
+
+    def test_get_column_index(self):
+        self.assertEquals(self.data.get_column_index(0, 0), 0)
+        self.assertEquals(self.data.get_column_index(0, 1), 1)
+        self.assertEquals(self.data.get_column_index(0, 2), 2)
+        self.assertEquals(self.data.get_column_index(1, 0), 3)
+        self.assertEquals(self.data.get_column_index(1, 1), 4)
 
 if __name__ == "__main__":
     unittest.main()

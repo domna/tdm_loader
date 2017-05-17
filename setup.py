@@ -35,7 +35,7 @@ kwargs = dict(
     author_email = 'florian.dobener (at) schroedingerscat.org',
     maintainer = 'Florian Dobener',
     maintainer_email = 'florian.dobener@schroedingerscat.org',
-    url = 'https://bitbucket.org/floriandobener/tdm_loader',
+    url = 'https://github.com/domna/tdm_loader',
     license = 'MIT',
     description = ('Open National Instruments TDM/TDX files as '
                    'NumPy structured arrays.'),
