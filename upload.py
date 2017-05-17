@@ -2,17 +2,18 @@ import os
 import shutil
 import subprocess
 import zipfile
+import imp
 
-import tdm_loader
+tdm_loader = imp.load_source('tdm_loader', 'C:\Users\Florian\PyCharmProjects\\tdm_loader\\tdm_loader\\tdm_loader.py')
 
 current_dir = os.getcwd()
 initial_files = os.listdir(current_dir)
 
-with open(os.path.join(current_dir, 'README.txt'), 'wb') as fobj:
-    string = tdm_loader.tdm_loader.__doc__
+with open(os.path.join(current_dir, 'README.txt'), 'w') as fobj:
+    string = tdm_loader.__doc__
     fobj.write(string.replace('\n', '\r\n'))
 
-cmd = 'python setup.py register sdist bdist_egg bdist_wininst upload'
+cmd = 'python setup.py sdist bdist_egg bdist_wininst upload'
 subprocess.check_call(cmd, shell=True)
 
 cmd = 'make {0}'
@@ -40,9 +41,3 @@ for filename in all_files:
         os.remove(file_path)
     if os.path.isdir(file_path) and filename not in initial_files:
         shutil.rmtree(file_path)
-
-
-# remove .pypirc file, since it contains PyPI password
-pypirc_path = os.path.expanduser('~/.pypirc')
-if os.path.exists(pypirc_path):
-    os.remove(pypirc_path)
