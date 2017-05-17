@@ -170,7 +170,9 @@ class OpenFile(object):
             Returns the found channel names as tuple of full name and column index or channel group and channel indices
             depending on the value of return_column.
         """
-        
+        if search_term == "":
+            return []
+
         ch_names = [x.text for x in self._root.findall(".//tdm_channel/name")
                     if x.text is not None]
         search_term = str(search_term).upper().replace(' ', '')
@@ -274,9 +276,12 @@ class OpenFile(object):
         """
         
         try:
-            inc_usi = self._root.findall(
+            inc_usi = (self._root.findall(
                 ".//double_sequence/values"
-                + "[@external='inc" + str(column_index) + "']..")[0].get("id")
+                + "[@external='inc" + str(column_index) + "']..") or
+               self._root.findall(
+                   ".//long_sequence/values"
+                   + "[@external='inc" + str(column_index) + "'].."))[0].get("id")
                         
         except IndexError:
             raise IndexError("Column index " + str(column_index) + " out of range")

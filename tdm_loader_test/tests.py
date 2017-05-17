@@ -98,7 +98,6 @@ class TestTDMLoader(TestCase):
         self.assertEqual(self.data.channel_search("Integers"), [("Float_4_Integers", 0, 0)])
         self.assertEqual(self.data.channel_search("Float"), [("Float_4_Integers", 0, 0),
                                                              ("Float as Float", 0, 1)])
-        print self.data.channel_search("")
         self.assertEqual(self.data.channel_search(""), [])
 
     def test_channel_unit(self):
