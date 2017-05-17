@@ -561,7 +561,7 @@ class ReadTDM(object):
     """
     def __init__(self, tdm_path):
         try:
-            string = open(tdm_path, mode='r').read()
+            string = open(tdm_path, mode='r', encoding='utf-8').read()
         except IOError:
             raise IOError('TDM file not found: ' + tdm_path)
         self._xmltree = etree.XML(string)
