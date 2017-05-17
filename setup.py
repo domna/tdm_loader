@@ -15,12 +15,12 @@ sys.path.insert(0, current_dir)
 requires = ['numpy>=1.5']
 
 package_name = 'tdm_loader'
-with open(os.path.join(current_dir, package_name, 'VERSION'), 'rb') as fobj:
+with open(os.path.join(current_dir, package_name, 'VERSION'), 'r') as fobj:
     version = fobj.read().strip()
 
 try:
     long_description = open(os.path.join(current_dir, 'README.md'),
-                            'rb').read()
+                            'r').read()
 except:
     long_description = ''
 
