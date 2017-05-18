@@ -8,7 +8,7 @@ It can be installed in the standard way::
 Sample usage::
 
     import tdm_loader
-    data_file = tdm_loader.OpenFile('filename.tdm')
+    data_file = tdm_loader.OpenFile('filename.tdm', [encoding='utf-8'])
 
 Access a column by number::
 
