@@ -32,6 +32,7 @@ from struct import pack
 import re
 from xml.etree import cElementTree as etree
 import xml.etree.ElementTree as ElementTree
+from codecs import open
 
 import numpy as np
 try:
@@ -72,9 +73,9 @@ class OpenFile(object):
         TDX file is located in the same directory as the .TDM file, and the
         filename specified in the .TDM file will be used.
     """
-    def __init__(self, tdm_path, tdx_path=''):
+    def __init__(self, tdm_path, tdx_path='', encoding='utf-8'):
         self._folder, self._tdm_filename = os.path.split(tdm_path)
-        self.tdm = ReadTDM(tdm_path)
+        self.tdm = ReadTDM(tdm_path, encoding = encoding)
         self.num_channels = self.tdm.num_channels
 
         if tdx_path == '':
@@ -559,9 +560,9 @@ class ReadTDM(object):
     tdm_path : str
         The full path to the .TDM file.
     """
-    def __init__(self, tdm_path):
+    def __init__(self, tdm_path, encoding='utf-8'):
         try:
-            string = open(tdm_path, mode='r', encoding='utf-8').read()
+            string = open(tdm_path, mode='r', encoding=encoding).read()
         except IOError:
             raise IOError('TDM file not found: ' + tdm_path)
         self._xmltree = etree.XML(string)
