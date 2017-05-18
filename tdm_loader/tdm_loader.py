@@ -112,17 +112,26 @@ class OpenFile(object):
     def _get_tdm_channel_usi(self, chg, ch):
         """Returns the usi identifications of the given channel group and channel indices.
         """
-        try:
-            channel_usis = [x.text for x in self._root.findall(".//tdm_channelgroup/channels")][chg]
-        except IndexError:
-            raise IndexError("Channelgroup " + str(chg) + " out of range")
-            
-        try:
-            ch_usi = re.findall("id\(\"(.+?)\"\)", channel_usis)[ch]
-        except IndexError:
-            raise IndexError("Channel " + str(ch) + " out of range")
-            
-        return ch_usi
+        if isinstance(ch, str):
+            _, cg, c = self.channel_search(ch)
+            if cg != chg:
+                raise IndexError("Channel " + ch + " is not a member of channel group " + chg)
+            else:
+                return self._get_tdm_channel_usi(chg, c)
+        elif isinstance(ch, int):
+            try:
+                channel_usis = [x.text for x in self._root.findall(".//tdm_channelgroup/channels")][chg]
+            except IndexError:
+                raise IndexError("Channelgroup " + str(chg) + " out of range")
+
+            try:
+                ch_usi = re.findall("id\(\"(.+?)\"\)", channel_usis)[ch]
+            except IndexError:
+                raise IndexError("Channel " + str(ch) + " out of range")
+
+            return ch_usi
+        else:
+            raise TypeError("The given parameter types are unsupported.")
 
     def channel_group_search(self, search_term):
         """Returns a list of channel group names that contain ``search term``.
@@ -138,7 +147,7 @@ class OpenFile(object):
         found_terms : list of (str, int)
             Returns the found channel group names as tuple of full name and channel group index.
         """
-        if type(search_term) is not str:
+        if not isinstance(search_term, str):
             raise TypeError("I can search for str terms only.")
 
         chg_names = [x.text for x in self._root.findall(".//tdm_channelgroup/name")
@@ -194,12 +203,6 @@ class OpenFile(object):
             
         return ind_chg_ch
 
-    def __getitem__(self, key):
-        return self._tdx_memmap.col(key)
-
-    def __len__(self):
-        return self.num_channels
-
     def plot_channels(self, x, ys):
         """Plot multiple channels.
 
@@ -237,8 +240,8 @@ class OpenFile(object):
         ----------
         channel_group : int
             The index of the channel group.
-        channel : int
-            The index of the channel inside the group.
+        channel : int or str
+            The index or name of the channel inside the group.
         """
         try:
             if channel_group < 0 or channel < 0:
@@ -325,18 +328,18 @@ class OpenFile(object):
         ----------
         channel_group : int or str
             The index or name of the channel group.
-        channel : int
-            The index of the channel inside the group.
-        occurrence : int
+        channel : int or str
+            The index or name of the channel inside the group.
+        occurrence : int, Optional
             Gives the nth occurence of the channel group name. By default the first occurence is returned. 
             This parameter is only used when channel_group is given as a string.
         """
         
-        if type(channel_group) is int:
+        if isinstance(channel_group, int):
             ch_number = self.get_column_index(channel_group, channel)
         
             return self._tdx_memmap.col(ch_number)
-        elif type(channel_group) is str:
+        elif isinstance(channel_group, str):
             chg_ind = self.channel_group_index(channel_group, occurrence)
         
             return self.channel(chg_ind, channel)
@@ -354,14 +357,14 @@ class OpenFile(object):
             Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
             This parameter is only used when channel_group is given as a string."""
 
-        if type(channel_group) is int:
+        if isinstance(channel_group, int):
             channel_dict = {}
             for i in range(self.no_channels(channel_group)):
                 name = self.channel_name(channel_group, i)
                 ch = self.channel(channel_group, i)
                 channel_dict[name] = np.array(ch)
             return channel_dict
-        elif type(channel_group) is str:
+        elif isinstance(channel_group, str):
             chg_ind = self.channel_group_index(channel_group, occurrence)
 
             return self.channel_dict(chg_ind)
@@ -373,8 +376,8 @@ class OpenFile(object):
         ----------
         channel_group : int
             The index of the channel group.
-        channel : int
-            The index of the channel inside the group.
+        channel : int or str
+            The index or name of the channel inside the group.
         """
         ch_usi = self._get_tdm_channel_usi(channel_group, channel)
         name = self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/name")[0].text
@@ -391,8 +394,8 @@ class OpenFile(object):
         ----------
         channel_group : int
             The index of the channel group.
-        channel : int
-            The index of the channel inside the group.
+        channel : int or str
+            The index or name of the channel inside the group.
         """
         ch_usi = self._get_tdm_channel_usi(channel_group, channel)
         
@@ -413,6 +416,9 @@ class OpenFile(object):
         channel_group : int
             The index of the channel group.
         """
+        if not isinstance(channel_group, int):
+            raise TypeError("Only integer values allowed.")
+
         try:
             return [x.text for x in self._root.findall(".//tdm_channelgroup/name")][channel_group]
         except IndexError:
@@ -425,10 +431,10 @@ class OpenFile(object):
         ----------
         channel_group_name : str
             The name of the channel group.
-        occurrence : int
+        occurrence : int, Optional
             Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
         """
-        if type(channel_group_name) is not str:
+        if not isinstance(channel_group_name, str):
             raise TypeError("Only str is accepted as input channel_group_name.")
         list_len = -1
         try:
@@ -458,7 +464,7 @@ class OpenFile(object):
         channel_group : int
             The index of the channel group.
         """
-        if type(channel_group) is not int:
+        if not isinstance(channel_group, int):
             raise TypeError("Only integer values allowed.")
 
         try:
@@ -472,6 +478,27 @@ class OpenFile(object):
         """Close the file.
         """
         self._tdx_fobj.close()
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            if len(key) != 2:
+                raise IndexError(key)
+            channel_group, channel = key
+            if isinstance(channel, int):
+                return self.channel(channel_group, channel)
+            else:
+                raise TypeError(channel)
+        elif isinstance(key, str):
+            if key in self.channel_names:
+                _, channel_group, channel = self.channel_search(key)[0]
+                return self.channel(channel_group, channel)
+            else:
+                raise KeyError(key)
+        else:
+            return self[0, key]  # Use channel_group 0
+
+    def __len__(self):
+        return self.num_channels
 
     def __del__(self):
         self.close()
