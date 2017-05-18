@@ -100,6 +100,16 @@ class TestTDMLoader(TestCase):
                                                              ("Float as Float", 0, 1)])
         self.assertEqual(self.data.channel_search(""), [])
 
+    def test_channel_dict(self):
+        self.assertTrue((self.data.channel_dict(0)['Integer32_with_max_min'] == s.array([9, 10, 11, -50, sys.maxint, -sys.maxint - 1])).all())
+        self.assertTrue((self.data.channel_dict(0)['Float as Float'] == s.array([.1, .2, .3, .4, .5, .6])).all())
+        self.assertTrue((self.data.channel_dict(0)['Float_4_Integers'] == s.array([1, 2, 3, 4])).all())
+
+        self.assertTrue((self.data.channel_dict(1)[''] == s.array([0])).all())
+
+        self.assertRaises(IndexError, self.data.channel_dict, -1)
+        self.assertRaises(IndexError, self.data.channel_dict, 2)
+
     def test_channel_unit(self):
         self.assertEqual(self.data.channel_unit(0, 0), "arb. units")
         self.assertEqual(self.data.channel_unit(0, 1), "eV")

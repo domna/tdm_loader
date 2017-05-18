@@ -342,7 +342,30 @@ class OpenFile(object):
             return self.channel(chg_ind, channel)
         else:
             raise TypeError("The given channel group parameter type is unsupported")
+
+    def channel_dict(self, channel_group, occurrence=0):
+        """Returns a dict representation of a channel group.
         
+        Parameters
+        ----------
+        channel_group : int or str
+            The index or name of the channel group.
+        occurrence : int
+            Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
+            This parameter is only used when channel_group is given as a string."""
+
+        if type(channel_group) is int:
+            channel_dict = {}
+            for i in range(self.no_channels(channel_group)):
+                name = self.channel_name(channel_group, i)
+                ch = self.channel(channel_group, i)
+                channel_dict[name] = np.array(ch)
+            return channel_dict
+        elif type(channel_group) is str:
+            chg_ind = self.channel_group_index(channel_group, occurrence)
+
+            return self.channel_dict(chg_ind)
+
     def channel_name(self, channel_group, channel):
         """Returns the name of the channel at given channel group and channel indices.
         

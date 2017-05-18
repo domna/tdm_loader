@@ -22,6 +22,10 @@ Access a channel by channel group and channel index combination::
 
     data_file.channel(channel_group, channel)
 
+Get a whole channel group as dict:
+
+    data_file.channel_dict(channel_group)
+
 Search for a column name.  A list of all column names that contain
 ``search_term`` and their indices will be returned::
 
