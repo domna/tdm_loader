@@ -180,9 +180,9 @@ class OpenFile(object):
         found_terms = [name for name in ch_names
                        if name.upper().replace(' ', '').find(str(search_term)) >= 0]
 
-        print(found_terms)
-        print(ch_names.index(found_terms[-1]))
-        print(self.get_channel_indices(ch_names.index(found_terms[-1])))
+#        print(found_terms)
+#        print(ch_names.index(found_terms[-1]))
+#        print(self.get_channel_indices(ch_names.index(found_terms[-1])))
         ind = []
         ind_chg_ch = []
         for name in found_terms:
