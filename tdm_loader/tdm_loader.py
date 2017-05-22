@@ -33,6 +33,7 @@ import re
 from xml.etree import cElementTree as etree
 import xml.etree.ElementTree as ElementTree
 from codecs import open
+import warnings
 
 import numpy as np
 try:
@@ -86,6 +87,10 @@ class OpenFile(object):
         self.channel_names = [chan.name for chan in self.tdm.channels]
         
         self._root = ElementTree.parse(tdm_path).getroot()
+        
+        self._name_to_indices = {self.channel_name(g, c): (g, c)
+                                 for g in range(self.no_channel_groups())
+                                 for c in range(self.no_channels(g))}
 
     def _open_tdx(self, tdx_path):
         """Open a TDX file.
@@ -359,10 +364,16 @@ class OpenFile(object):
 
         if isinstance(channel_group, int):
             channel_dict = {}
+            name_doublets = set()
             for i in range(self.no_channels(channel_group)):
                 name = self.channel_name(channel_group, i)
                 ch = self.channel(channel_group, i)
+                if name in channel_dict:
+                    name_doublets.add(name)
                 channel_dict[name] = np.array(ch)
+            if len(name_doublets) > 0:
+                warnings.warn("Duplicate channel name(s): {}" \
+                              .format(name_doublets))
             return channel_dict
         elif isinstance(channel_group, str):
             chg_ind = self.channel_group_index(channel_group, occurrence)
@@ -489,11 +500,11 @@ class OpenFile(object):
             else:
                 raise TypeError(channel)
         elif isinstance(key, str):
-            if key in self.channel_names:
-                _, channel_group, channel = self.channel_search(key)[0]
-                return self.channel(channel_group, channel)
-            else:
-                raise KeyError(key)
+            channel_group, channel = self._name_to_indices[key]
+            if self.channel_names.count(key) > 1:
+                warnings.warn("More than one channel with the name '{}'." \
+                              .format(key))
+            return self.channel(channel_group, channel)
         else:
             return self[0, key]  # Use channel_group 0
 
@@ -642,8 +653,8 @@ class ReadTDM(object):
             blocks = temp.findall('block')
         channel_names = self._xmltree.find(QNAME + 'data').findall(
                                                                   'tdm_channel')
-        self.num_channels = len(blocks)
-        assert(len(blocks) == len(channel_names))
+        self.num_channels = len(channel_names)
+        assert(len(blocks) >= len(channel_names))
 
         formats = []
         names = []
@@ -657,7 +668,9 @@ class ReadTDM(object):
             except KeyError:
                 raise TypeError(
                             'Unknown data type in TDM file. Channel ' + str(i))
-            chan.name = str(channel_names[i].find('name').text)
+            chan.name = channel_names[i].find('name').text
+            if chan.name is None:
+                chan.name = ''
             self.channels.append(chan)
             formats.append(chan.dtype)
             names.append(chan.name)
