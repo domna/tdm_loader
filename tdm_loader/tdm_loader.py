@@ -653,8 +653,8 @@ class ReadTDM(object):
             blocks = temp.findall('block')
         channel_names = self._xmltree.find(QNAME + 'data').findall(
                                                                   'tdm_channel')
-        self.num_channels = len(blocks)
-        assert(len(blocks) == len(channel_names))
+        self.num_channels = len(channel_names)
+        assert(len(blocks) >= len(channel_names))
 
         formats = []
         names = []
