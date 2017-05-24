@@ -10,15 +10,19 @@ Sample usage::
     import tdm_loader
     data_file = tdm_loader.OpenFile('filename.tdm' [, encoding='utf-8'])
 
-Access a column by number::
+Access a channel by number or name for the first channel_group::
 
-    data_file[column_num]
+    data_file[channel]
 
-Access a column by number::
+Access a channel in a channel_group by name or number::
+
+    data_file[channel_group, channel]
+
+Access a column by number or name::
 
     data_file.col(column_num)
 
-Access a channel by channel group and channel index combination::
+Access a channel by channel group and channel index or name combination::
 
     data_file.channel(channel_group, channel)
 
