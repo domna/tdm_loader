@@ -114,13 +114,13 @@ class OpenFile(object):
             message = 'unknown exporter type: {exp_type}'
             raise IOError(message.format(exp_type=self.tdm.exporter_type))
             
-    def _get_tdm_channel_usi(self, chg, ch):
+    def _get_tdm_channel_usi(self, chg, ch, occurrence=0):
         """Returns the usi identifications of the given channel group and channel indices.
         """
         if isinstance(ch, str):
-            _, cg, c = self.channel_search(ch)
+            _, cg, c = self.channel_search(ch)[occurrence]
             if cg != chg:
-                raise IndexError("Channel " + ch + " is not a member of channel group " + chg)
+                raise IndexError("Channel {0} is not a member of channel group {1}".format(ch, chg))
             else:
                 return self._get_tdm_channel_usi(chg, c)
         elif isinstance(ch, int):
@@ -185,14 +185,14 @@ class OpenFile(object):
             Returns the found channel names as tuple of full name and column index or channel group and channel indices
             depending on the value of return_column.
         """
-        if search_term == "":
-            return []
 
-        ch_names = [x.text for x in self._root.findall(".//tdm_channel/name")
-                    if x.text is not None]
+        ch_names = [x.text for x in self._root.findall(".//tdm_channel/name")]
         search_term = str(search_term).upper().replace(' ', '')
-        found_terms = [name for name in ch_names
-                       if name.upper().replace(' ', '').find(str(search_term)) >= 0]
+        if search_term == "":
+            found_terms = [name for name in ch_names if name is None]
+        else:
+            found_terms = [name for name in ch_names if name is not None
+                           and name.upper().replace(' ', '').find(str(search_term)) >= 0]
 
         ind = []
         ind_chg_ch = []
@@ -238,7 +238,7 @@ class OpenFile(object):
         """
         return self._tdx_memmap.col(column_number)
         
-    def get_column_index(self, channel_group, channel):
+    def get_column_index(self, channel_group, channel, occurrence=0):
         """Returns the column index of given channel group and channel indices.
         
         Parameters
@@ -252,7 +252,7 @@ class OpenFile(object):
             if channel_group < 0 or channel < 0:
                 raise IndexError()
 
-            ch_usi = self._get_tdm_channel_usi(channel_group, channel)
+            ch_usi = self._get_tdm_channel_usi(channel_group, channel, occurrence=occurrence)
             local_column_usi = re.findall(
                 "id\(\"(.+?)\"\)",
                self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/local_columns")[0].text)[0]
@@ -326,7 +326,7 @@ class OpenFile(object):
         
         return chgi, ch
         
-    def channel(self, channel_group, channel, occurrence=0):
+    def channel(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         """Returns a data channel by its channel group and channel index.
         
         Parameters
@@ -338,16 +338,19 @@ class OpenFile(object):
         occurrence : int, Optional
             Gives the nth occurence of the channel group name. By default the first occurence is returned. 
             This parameter is only used when channel_group is given as a string.
+        ch_occurrence : int, Optional
+            Gives the nth occurence of the channel name. By default the first occurence is returned. 
+            This parameter is only used when channel_group is given as a string.
         """
         
         if isinstance(channel_group, int):
-            ch_number = self.get_column_index(channel_group, channel)
+            ch_number = self.get_column_index(channel_group, channel, occurrence=ch_occurrence)
         
             return self._tdx_memmap.col(ch_number)
         elif isinstance(channel_group, str):
             chg_ind = self.channel_group_index(channel_group, occurrence)
         
-            return self.channel(chg_ind, channel)
+            return self.channel(chg_ind, channel, ch_occurrence=ch_occurrence)
         else:
             raise TypeError("The given channel group parameter type is unsupported")
 
@@ -502,11 +505,13 @@ class OpenFile(object):
         elif isinstance(key, str):
             channel_group, channel = self._name_to_indices[key]
             if self.channel_names.count(key) > 1:
-                warnings.warn("More than one channel with the name '{}'." \
+                warnings.warn("More than one channel with the name '{}'."
                               .format(key))
             return self.channel(channel_group, channel)
-        else:
+        elif isinstance(key, int):
             return self[0, key]  # Use channel_group 0
+        else:
+            raise TypeError("Unsupported parameter type.")
 
     def __len__(self):
         return self.num_channels
