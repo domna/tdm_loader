@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>tdm_loader &#8212; tdm_loader 1.1.7 documentation</title>
+    <title>tdm_loader &#8212; tdm_loader 1.1.8 documentation</title>
     
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '1.1.7',
+        VERSION:     '1.1.8',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -34,7 +34,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-        <li class="nav-item nav-item-0"><a href="#">tdm_loader 1.1.7 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">tdm_loader 1.1.8 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -62,7 +62,7 @@ filename specified in the .TDM file will be used.</dd>
 </dl>
 <dl class="method">
 <dt id="tdm_loader.tdm_loader.OpenFile.channel">
-<code class="descname">channel</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em>, <em>occurrence=0</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel" title="Permalink to this definition">¶</a></dt>
+<code class="descname">channel</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em>, <em>occurrence=0</em>, <em>ch_occurrence=0</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.channel" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a data channel by its channel group and channel index.</p>
 <dl class="docutils">
 <dt>channel_group <span class="classifier-delimiter">:</span> <span class="classifier">int or str</span></dt>
@@ -71,6 +71,9 @@ filename specified in the .TDM file will be used.</dd>
 <dd>The index or name of the channel inside the group.</dd>
 <dt>occurrence <span class="classifier-delimiter">:</span> <span class="classifier">int, Optional</span></dt>
 <dd>Gives the nth occurence of the channel group name. By default the first occurence is returned. 
+This parameter is only used when channel_group is given as a string.</dd>
+<dt>ch_occurrence <span class="classifier-delimiter">:</span> <span class="classifier">int, Optional</span></dt>
+<dd>Gives the nth occurence of the channel name. By default the first occurence is returned. 
 This parameter is only used when channel_group is given as a string.</dd>
 </dl>
 </dd></dl>
@@ -195,7 +198,7 @@ depending on the value of return_column.</dd>
 
 <dl class="method">
 <dt id="tdm_loader.tdm_loader.OpenFile.get_column_index">
-<code class="descname">get_column_index</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.get_column_index" title="Permalink to this definition">¶</a></dt>
+<code class="descname">get_column_index</code><span class="sig-paren">(</span><em>channel_group</em>, <em>channel</em>, <em>occurrence=0</em><span class="sig-paren">)</span><a class="headerlink" href="#tdm_loader.tdm_loader.OpenFile.get_column_index" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the column index of given channel group and channel indices.</p>
 <dl class="docutils">
 <dt>channel_group <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
@@ -294,7 +297,7 @@ depending on the value of return_column.</dd>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-        <li class="nav-item nav-item-0"><a href="#">tdm_loader 1.1.7 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">tdm_loader 1.1.8 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
