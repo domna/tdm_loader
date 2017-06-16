@@ -491,7 +491,8 @@ class OpenFile(object):
     def close(self):
         """Close the file.
         """
-        self._tdx_fobj.close()
+        if hasattr(self, '_tdx_fobj'):
+            self._tdx_fobj.close()
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
