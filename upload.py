@@ -4,8 +4,8 @@ import subprocess
 import zipfile
 import imp
 
-tdm_loader = imp.load_source('tdm_loader', 'C:\Users\Florian\PyCharmProjects\\tdm_loader\\tdm_loader\\tdm_loader.py')
-
+#tdm_loader = imp.load_source('tdm_loader', 'C:\Users\Florian\PyCharmProjects\\tdm_loader\\tdm_loader\\tdm_loader.py')
+tdm_loader = imp.load_source('tdm_loader', '/Users/domna/PycharmProjects/tdm_loader/tdm_loader/tdm_loader.py')
 current_dir = os.getcwd()
 initial_files = os.listdir(current_dir)
 

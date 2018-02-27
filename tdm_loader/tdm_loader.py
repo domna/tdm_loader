@@ -571,7 +571,7 @@ class MemmapColumnFirst(object):
         self._col2name = {}
         self._num_channels = tdm_file.num_channels
         self._empty_row = np.recarray((1, ), tdm_file.dtype)
-        self._empty_row[0] = pack('') # initialize all items to zero
+        self._empty_row[0] = 0 # initialize all items to zero
         channels = tdm_file.channels
         for i in range(len(channels)):
             self._name2col[channels[i].name] = i
