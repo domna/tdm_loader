@@ -375,7 +375,7 @@ class OpenFile(object):
                     name_doublets.add(name)
                 channel_dict[name] = np.array(ch)
             if len(name_doublets) > 0:
-                warnings.warn("Duplicate channel name(s): {}" \
+                warnings.warn("Duplicate channel name(s): {}"
                               .format(name_doublets))
             return channel_dict
         elif isinstance(channel_group, str):
@@ -626,13 +626,12 @@ class ReadTDM(object):
     """
     def __init__(self, tdm_path, encoding='utf-8'):
         try:
-            string = open(tdm_path, mode='r', encoding=encoding).read()
+            self._xmltree = etree.parse(tdm_path)
         except IOError:
             raise IOError('TDM file not found: ' + tdm_path)
-        self._xmltree = etree.XML(string)
+
         self._extract_file_props()
         self._extract_channel_props()
-        self._xmltree.clear()
 
     def _extract_file_props(self):
         """Extracts file data from a TDM file.
@@ -697,12 +696,12 @@ class ChannelData(object):
     """Stores data about a single data channel.
     """
     def __init__(self):
-        self.name = ''
-        self.dtype = ''
+        self.name = u''
+        self.dtype = u''
         self.length = 0
         self.byte_offset = 0
 
     def __repr__(self):
-        return ''.join(['name = ', self.name, '\ndtype = ', self.dtype, '\n',
-                        'length = ', str(self.length), '\n',
-                        'byte offset = ', str(self.byte_offset)])
+        return u''.join([u'name = ', self.name, u'\ndtype = ', self.dtype, u'\n',
+                        u'length = ', str(self.length), '\n',
+                        u'byte offset = ', str(self.byte_offset)])
