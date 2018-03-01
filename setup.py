@@ -12,7 +12,7 @@ current_dir = os.getcwd()
 sys.path.insert(0, current_dir)
 
 
-requires = ['numpy>=1.5']
+requires = ['numpy>=1.14']
 
 package_name = 'tdm_loader'
 with open(os.path.join(current_dir, package_name, 'VERSION'), 'r') as fobj:
