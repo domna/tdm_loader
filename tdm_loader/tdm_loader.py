@@ -466,7 +466,29 @@ class OpenFile(object):
             else:
                 raise IndexError(
                     "The channel group name {0} does only occur {1} time(s)".format(channel_group_name, str(list_len)))
-        
+
+    def channel_description(self, channel_group, channel):
+        """Returns the description of the channel at given channel group and channel indices.
+
+        Parameters
+        ----------
+        channel_group : int
+            The index of the channel group.
+        channel : int or str
+            The index or name of the channel inside the group.
+        """
+        ch_usi = self._get_tdm_channel_usi(channel_group, channel)
+
+        try:
+            description = self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/description")[0].text
+            if description is None:
+                return ""
+            else:
+                return description
+        except IndexError:
+            return ""
+
+
     def no_channel_groups(self):
         """Returns the total number of channel groups.
         """
