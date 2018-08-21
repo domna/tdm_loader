@@ -28,9 +28,7 @@ Search for a column name.  A list of all column names that contain
     data_file.channel_search(search_term)
 """
 import os.path
-from struct import pack
 import re
-from xml.etree import cElementTree as etree
 import xml.etree.ElementTree as ElementTree
 from codecs import open
 import warnings
@@ -595,7 +593,7 @@ class MemmapColumnFirst(object):
         self._col2name = {}
         self._num_channels = tdm_file.num_channels
         self._empty_row = np.recarray((1, ), tdm_file.dtype)
-        self._empty_row[0] = 0 # initialize all items to zero
+        self._empty_row[0] = 0  # initialize all items to zero
         channels = tdm_file.channels
         for i in range(len(channels)):
             self._name2col[channels[i].name] = i
@@ -650,9 +648,11 @@ class ReadTDM(object):
     """
     def __init__(self, tdm_path, encoding='utf-8'):
         try:
-            self._xmltree = etree.parse(tdm_path)
+            self._xmltree = ElementTree.parse(tdm_path).getroot()
         except IOError:
             raise IOError('TDM file not found: ' + tdm_path)
+
+        self._namespace = {'usi': self._xmltree.tag.split('}')[0].strip('{')}
 
         self._extract_file_props()
         self._extract_channel_props()
@@ -660,10 +660,9 @@ class ReadTDM(object):
     def _extract_file_props(self):
         """Extracts file data from a TDM file.
         """
-        self.exporter_type = self._xmltree.find(QNAME + 'documentation')\
-                                                  .find(QNAME + 'exporter').text
+        self.exporter_type = self._xmltree.find(".//usi:documentation/usi:exporter", self._namespace).text
 
-        fileprops = self._xmltree.find(QNAME + 'include').find('file')
+        fileprops = self._xmltree.find(".//usi:include/file", self._namespace)
         self.tdx_filename = fileprops.get('url')
         self.byte_order = fileprops.get('byteOrder')
         if self.byte_order == 'littleEndian':
@@ -676,37 +675,39 @@ class ReadTDM(object):
     def _extract_channel_props(self):
         """Extracts channel data from a TDM file.
         """
-        temp = self._xmltree.find(QNAME + 'include').find('file')
-        blocks = temp.findall('block_bm')
-        if len(blocks) == 0:
-            blocks = temp.findall('block')
-        channel_names = self._xmltree.find(QNAME + 'data').findall(
-                                                                  'tdm_channel')
-        self.num_channels = len(channel_names)
-        assert(len(blocks) >= len(channel_names))
+        channels = self._xmltree.findall(".//usi:data/tdm_channel", self._namespace)
 
         formats = []
-        names = []
         self.channels = []
-        for i in range(self.num_channels):
-            chan = ChannelData()
-            chan.byte_offset = int(blocks[i].get('byteOffset'))
-            chan.length = int(blocks[i].get('length'))
-            try:
-                chan.dtype = self._convert_dtypes(blocks[i].get('valueType'))
-            except KeyError:
-                raise TypeError(
-                            'Unknown data type in TDM file. Channel ' + str(i))
-            chan.name = channel_names[i].find('name').text
-            if chan.name is None:
-                chan.name = ''
-            self.channels.append(chan)
-            formats.append(chan.dtype)
-            names.append(chan.name)
+        for ch in channels:
+            usi = re.findall("id\(\"(.+?)\"\)", ch.find(".//local_columns").text)[0]
+            data_usi_et = self._xmltree.find(".//localcolumn[@id='" + str(usi) + "']/values")
 
-        #self.dtype = np.format_parser(formats, names, []).dtype
-        #Names can not be cept here, otherwise importing of files with duplicate column names would not be possible
-        self.dtype = np.format_parser(formats, [], []).dtype 
+            if data_usi_et is None:
+                pass
+            else:
+                data_usi = re.findall("id\(\"(.+?)\"\)", data_usi_et.text)[0]
+                ext = self._xmltree.find(".//usi:data/*[@id='" + str(data_usi) + "']/values", self._namespace).get(
+                    'external')
+                block = self._xmltree.find(".//usi:include/file/*[@id='" + ext + "']", self._namespace)
+                chan = ChannelData()
+                chan.byte_offset = int(block.get('byteOffset'))
+                chan.length = int(block.get('length'))
+                try:
+                    chan.dtype = self._convert_dtypes(block.get('valueType'))
+                except KeyError:
+                    raise TypeError('Unknown data type in TDM file. Channel ' + str(ch))
+
+                if ch.find('.//name') is None:
+                    chan.name = ''
+                else:
+                    chan.name = ch.find('.//name').text
+
+                self.channels.append(chan)
+                formats.append(chan.dtype)
+
+        self.num_channels = len(self.channels)
+        self.dtype = np.format_parser(formats, [], []).dtype
 
     def _convert_dtypes(self, tdm_dtype):
         """Convert a TDM data type to a NumPy data type.
