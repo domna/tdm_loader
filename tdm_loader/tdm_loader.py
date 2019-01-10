@@ -249,7 +249,7 @@ class OpenFile(object):
             The index or name of the channel inside the group.
         """
         try:
-            if channel_group < 0 or channel < 0:
+            if channel_group < 0 or (isinstance(channel, int) and channel < 0):
                 raise IndexError()
 
             ch_usi = self._get_tdm_channel_usi(channel_group, channel, occurrence=occurrence)
