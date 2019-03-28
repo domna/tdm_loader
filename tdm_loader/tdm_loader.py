@@ -87,7 +87,8 @@ class OpenFile(object):
         self.channel_names = [chan.name for chan in self.tdm.channels]
         
         self._root = ElementTree.parse(tdm_path).getroot()
-        
+        self._namespace = {'usi': self._root.tag.split('}')[0].strip('{')}
+
         self._name_to_indices = {self.channel_name(g, c): (g, c)
                                  for g in range(self.no_channel_groups())
                                  for c in range(self.no_channels(g))}
@@ -181,7 +182,7 @@ class OpenFile(object):
         
         Returns
         -------
-        found_terms : list of (str, int, int) or list of (str, int) (latter case for return_column = True)
+        found_terms : list of (str, int, int) or löist of (str, int) (latter case for return_column = True)
             Returns the found channel names as tuple of full name and column index or channel group and channel indices
             depending on the value of return_column.
         """
@@ -249,6 +250,12 @@ class OpenFile(object):
             The index or name of the channel inside the group.
         """
         try:
+            if isinstance(channel, int):
+                if self._root.find(".//usi:include/file/block[@id='inc" + str(channel) + "']", self._namespace) is not None:
+                    return channel
+                else:
+                    return None
+
             if channel_group < 0 or (isinstance(channel, int) and channel < 0):
                 raise IndexError()
 
@@ -260,16 +267,28 @@ class OpenFile(object):
                 "id\(\"(.+?)\"\)",
                self._root.findall(".//localcolumn[@id='" + str(local_column_usi) + "']/values")[0].text)[0]
 
-            try:
-                ext_id = self._root.findall(".//double_sequence/[@id='" + str(data_usi) + "']/values")[0].get('external')
-            except IndexError:
-                ext_id = self._root.findall(".//long_sequence/[@id='" + str(data_usi) + "']/values")[0].get(
-                    'external')
-            ch_number = int(re.findall("inc(\d+)", ext_id)[0])
+            for eid in self._root.findall(".//double_sequence/[@id='" + str(data_usi) + "']/values"):
+                ext_id = eid.get('external')
+
+            for eid in self._root.findall(".//long_sequence/[@id='" + str(data_usi) + "']/values"):
+                ext_id = eid.get('external')
+
+            for eid in self._root.findall(".//string_sequence/[@id='" + str(data_usi) + "']/values"):
+                ext_id = eid.get('external')
+
+            if ext_id is not None:
+                ch_number = int(re.findall("inc(\d+)", ext_id)[0])
+            else:
+                ch_number = None
+
         except IndexError:
             raise IndexError("Channel group " + str(channel_group) +
                              " or Channel " + str(channel) + " not found")
-        
+
+        except NameError:
+            raise NameError("Channel group " + str(channel_group) +
+                            " or Channel " + str(channel) + " is no long/double sequence")
+
         return ch_number
         
     def get_channel_indices(self, column_index):
@@ -345,8 +364,11 @@ class OpenFile(object):
         
         if isinstance(channel_group, int):
             ch_number = self.get_column_index(channel_group, channel, occurrence=ch_occurrence)
-        
-            return self._tdx_memmap.col(ch_number)
+
+            if ch_number is None:
+                return []
+            else:
+                return self._tdx_memmap.col(ch_number)
         elif isinstance(channel_group, str):
             chg_ind = self.channel_group_index(channel_group, occurrence)
         
@@ -356,7 +378,7 @@ class OpenFile(object):
 
     def channel_dict(self, channel_group, occurrence=0):
         """Returns a dict representation of a channel group.
-        
+
         Parameters
         ----------
         channel_group : int or str
@@ -486,7 +508,6 @@ class OpenFile(object):
         except IndexError:
             return ""
 
-
     def no_channel_groups(self):
         """Returns the total number of channel groups.
         """
@@ -505,10 +526,16 @@ class OpenFile(object):
 
         try:
             channel_usis = [x.text for x in self._root.findall(".//tdm_channelgroup/channels")][channel_group]
+            clean_usis = re.findall("id\(\"(.+?)\"\)", channel_usis)
+
+            i = 0
+            for clean_usi in clean_usis:
+                if self._root.find(".//tdm_channel[@id='" + clean_usi + "']/datatype").text != 'DT_STRING':
+                    i += 1
         except IndexError:
             raise IndexError("Channelgroup " + str(channel_group) + " out of range")
             
-        return len(re.findall("id\(\"(.+?)\"\)", channel_usis))
+        return i
            
     def close(self):
         """Close the file.
@@ -689,7 +716,11 @@ class ReadTDM(object):
                 data_usi = re.findall("id\(\"(.+?)\"\)", data_usi_et.text)[0]
                 ext = self._xmltree.find(".//usi:data/*[@id='" + str(data_usi) + "']/values", self._namespace).get(
                     'external')
-                block = self._xmltree.find(".//usi:include/file/*[@id='" + ext + "']", self._namespace)
+
+                if ext is None:
+                    continue  # Dirty fix for any data values without any binary representation
+                else:
+                    block = self._xmltree.find(".//usi:include/file/*[@id='" + ext + "']", self._namespace)
                 chan = ChannelData()
                 chan.byte_offset = int(block.get('byteOffset'))
                 chan.length = int(block.get('length'))
