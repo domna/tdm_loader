@@ -9,18 +9,14 @@ Sample usage::
 
     import tdm_loader
     data_file = tdm_loader.OpenFile('filename.tdm')
-
-Access a column by number::
-
-    data_file[column_num]
-
-Access a column by number::
-
-    data_file.col(column_num)
     
 Access a channel by channel group and channel index combination::
     
     data_file.channel(channel_group, channel)
+
+Get a dict of all channels in a channel group:
+
+    data_file.channel_dict(channel_group)
 
 Search for a column name.  A list of all column names that contain
 ``search_term`` and their indices will be returned::
@@ -32,32 +28,32 @@ import re
 import xml.etree.ElementTree as ElementTree
 from codecs import open
 import warnings
+from typing import Dict
 
 import numpy as np
+
 try:
     from matplotlib import pyplot as plt
+
     plt_available = True
 except ImportError:
     plt_available = False
 
-
-__all__ = ('OpenFile', 'ReadTDM')
-
+__all__ = ('OpenFile',)
 
 # XML "QName" in the TDM file
 # there has to be an easy way to determine this programmatically
 QNAME = '{http://www.ni.com/Schemas/USI/1_0}'
 
-
 # dictionary for converting from NI to NumPy datatypes
-DTYPE_CONVERTERS = {'eInt8Usi':    'i1',
-                    'eInt16Usi':   'i2',
-                    'eInt32Usi':   'i4',
-                    'eInt64Usi':   'i8',
-                    'eUInt8Usi':   'u1',
-                    'eUInt16Usi':  'u2',
-                    'eUInt32Usi':  'u4',
-                    'eUInt64Usi':  'u8',
+DTYPE_CONVERTERS = {'eInt8Usi': 'i1',
+                    'eInt16Usi': 'i2',
+                    'eInt32Usi': 'i4',
+                    'eInt64Usi': 'i8',
+                    'eUInt8Usi': 'u1',
+                    'eUInt16Usi': 'u2',
+                    'eUInt32Usi': 'u4',
+                    'eUInt64Usi': 'u8',
                     'eFloat32Usi': 'f4',
                     'eFloat64Usi': 'f8'}
 
@@ -74,70 +70,73 @@ class OpenFile(object):
         TDX file is located in the same directory as the .TDM file, and the
         filename specified in the .TDM file will be used.
     """
+
     def __init__(self, tdm_path, tdx_path='', encoding='utf-8'):
         self._folder, self._tdm_filename = os.path.split(tdm_path)
-        self.tdm = ReadTDM(tdm_path, encoding = encoding)
-        self.num_channels = self.tdm.num_channels
 
-        if tdx_path == '':
-            self._tdx_path = os.path.join(self._folder, self.tdm.tdx_filename)
-        else:
-            self._tdx_path = tdx_path
-        self._open_tdx(self._tdx_path)
-        self.channel_names = [chan.name for chan in self.tdm.channels]
-        
         self._root = ElementTree.parse(tdm_path).getroot()
         self._namespace = {'usi': self._root.tag.split('}')[0].strip('{')}
 
-        self._name_to_indices = {self.channel_name(g, c): (g, c)
-                                 for g in range(self.no_channel_groups())
-                                 for c in range(self.no_channels(g))}
+        self._xml_tdm_root = self._root.find('.//tdm_root')
+        self._xml_chgs = list(map(lambda usi: self._root.find('.//tdm_channelgroup[@id=\'{0}\']'.format(usi)),
+                                  re.findall("id\(\"(.+?)\"\)", self._xml_tdm_root.findtext('channelgroups'))))
 
-    def _open_tdx(self, tdx_path):
-        """Open a TDX file.
-        """
-        try:
-            self._tdx_fobj = open(tdx_path, mode='rb')
-        except IOError:
-            raise IOError('TDX file not found: ' + tdx_path)
-        if self.tdm.exporter_type.find('National Instruments') >= 0:
-            # data is in column first order
-            # use the hacked solution for the memmap
-            self._tdx_memmap = MemmapColumnFirst(self._tdx_fobj, self.tdm)
-            self._memmap_type = 'Slow'
-        elif self.tdm.exporter_type.find('LabVIEW') >= 0 or \
-                self.tdm.exporter_type.find('Data Server') >= 0:
-            # data is in row first order
-            # use the NumPy memmap directly (almost)
-            self._tdx_memmap = MemmapRowFirst(self._tdx_fobj, self.tdm)
-            self._memmap_type = 'Fast'
+        byte_order = self._root.find('.//file').get('byteOrder')
+        if byte_order == 'littleEndian':
+            self._endian = '<'
+        elif byte_order == 'bigEndian':
+            self._endian = '>'
         else:
-            message = 'unknown exporter type: {exp_type}'
-            raise IOError(message.format(exp_type=self.tdm.exporter_type))
-            
-    def _get_tdm_channel_usi(self, chg, ch, occurrence=0):
-        """Returns the usi identifications of the given channel group and channel indices.
-        """
-        if isinstance(ch, str):
-            _, cg, c = self.channel_search(ch)[occurrence]
-            if cg != chg:
-                raise IndexError("Channel {0} is not a member of channel group {1}".format(ch, chg))
-            else:
-                return self._get_tdm_channel_usi(chg, c)
-        elif isinstance(ch, int):
-            try:
-                channel_usis = [x.text for x in self._root.findall(".//tdm_channelgroup/channels")][chg]
-            except IndexError:
-                raise IndexError("Channelgroup " + str(chg) + " out of range")
+            raise TypeError('Unknown endian format in TDM file')
 
-            try:
-                ch_usi = re.findall("id\(\"(.+?)\"\)", channel_usis)[ch]
-            except IndexError:
-                raise IndexError("Channel " + str(ch) + " out of range")
-
-            return ch_usi
+        self._tdx_order = 'C'  # Set binary file reading to column-major style
+        if tdx_path == '':
+            self._tdx_path = os.path.join(self._folder, self._root.find('.//file').get('url'))
         else:
-            raise TypeError("The given parameter types are unsupported.")
+            self._tdx_path = tdx_path
+
+    def _channel_xml(self, channel_group, channel, occurrence=0, ch_occurrence=0):
+        chs = self._channels_xml(channel_group, occurrence)
+
+        if isinstance(channel, int):
+            if len(chs) <= channel or channel < 0:
+                raise IndexError('Channel {0} out of range'.format(channel))
+
+            ch = chs[channel]
+        elif isinstance(channel, str):
+            chns = list(filter(lambda x: x.findtext('name') == channel, chs))
+            if len(chns) < ch_occurrence:
+                raise IndexError('Channel {0} (occurrence {1}) not found'.format(channel, ch_occurrence))
+
+            ch = chns[ch_occurrence]
+        else:
+            raise TypeError('The given channel parameter type is unsupported')
+
+        return ch
+
+    def _channels_xml(self, channel_group, occurrence=0):
+        if isinstance(channel_group, int):
+            if len(self._xml_chgs) <= channel_group or channel_group < 0:
+                raise IndexError('Channel group {0} out of range'.format(channel_group))
+
+            chg = self._xml_chgs[channel_group]
+        elif isinstance(channel_group, str):
+            chgns = list(filter(lambda x: x.findtext('name') == channel_group, self._xml_chgs))
+            if len(chgns) < occurrence:
+                raise IndexError('Channel group {0} (occurrence {1}) not found'.format(channel_group, occurrence))
+
+            chg = chgns[occurrence]
+        else:
+            raise TypeError("The given channel group parameter type is unsupported")
+
+        chs = list(map(lambda usi: self._root.find(".//tdm_channel[@id='{0}']".format(usi)),
+                       OpenFile._get_usi_from_txt(chg.findtext('channels'.format(chg.get('id'))))))
+
+        return chs
+
+    @staticmethod
+    def _get_usi_from_txt(txt):
+        return re.findall("id\(\"(.+?)\"\)", txt)
 
     def channel_group_search(self, search_term):
         """Returns a list of channel group names that contain ``search term``.
@@ -161,15 +160,15 @@ class OpenFile(object):
         search_term = search_term.upper().replace(' ', '')
         found_terms = [name for name in chg_names if
                        name.upper().replace(' ', '').find(search_term) >= 0]
-                            
+
         ind = []
         for name in found_terms:
             i = chg_names.index(name)
             ind.append((name, i))
-            
+
         return ind
-                    
-    def channel_search(self, search_term, return_column=False):
+
+    def channel_search(self, search_term):
         """Returns a list of channel names that contain ``search term``.
         Results are independent of case and spaces in the channel name.
         
@@ -186,165 +185,24 @@ class OpenFile(object):
             Returns the found channel names as tuple of full name and column index or channel group and channel indices
             depending on the value of return_column.
         """
-
-        ch_names = [x.text for x in self._root.findall(".//tdm_channel/name")]
         search_term = str(search_term).upper().replace(' ', '')
-        if search_term == "":
-            found_terms = [name for name in ch_names if name is None]
-        else:
-            found_terms = [name for name in ch_names if name is not None
-                           and name.upper().replace(' ', '').find(str(search_term)) >= 0]
 
-        ind = []
         ind_chg_ch = []
-        for name in found_terms:
-            i = ch_names.index(name)
-            ind.append((name, i))
-            chg, ch = self.get_channel_indices(i)
-            ind_chg_ch.append((name, chg, ch))
-            ch_names[i] = ""
-            
-        if return_column:
-            return ind
-            
+        for j, chg in enumerate(self._xml_chgs):
+            chs = self._channels_xml(j)
+
+            if search_term == "":
+                found_terms = [ch.findtext('name') for ch in chs if ch.findtext('name') is None]
+            else:
+                found_terms = [ch.findtext('name') for ch in chs if ch.findtext('name') is not None
+                               and ch.findtext('name').upper().replace(' ', '').find(str(search_term)) >= 0]
+
+            for name in found_terms:
+                i = [ch.findtext('name') for ch in chs].index(name)
+                ind_chg_ch.append((name, j, i))
+
         return ind_chg_ch
 
-    def plot_channels(self, x, ys):
-        """Plot multiple channels.
-
-        Parameters
-        ----------
-        x : (int, int)
-            The channel group / channel indices combination of a single channel to plot on the x-axis.
-        ys : list of (int, int)
-            A list of multiple channel group / channel indices to plot on the y-axis.
-        """
-        if plt_available:
-            plt.style.use("bmh")
-            x_data = self.channel(x[0], x[1])
-            y_data = [self.channel(y[0], y[1]) for y in ys]
-            for i in range(len(ys)):
-                plt.plot(x_data, y_data[i])
-                
-            plt.xlabel(self.channel_name(x[0], x[1]) + " (" + self.channel_unit(x[0], x[1]) + ")")
-            plt.ylabel(self.channel_name(ys[0][0], ys[0][1]) + " (" + self.channel_unit(ys[0][0], ys[0][1]) + ")")
-            plt.grid()
-            plt.show()
-        else:
-            raise NotImplementedError(('matplotlib must be installed for '
-                                       'plotting'))
-
-    def col(self, column_number):
-        """Returns a data column by its index number.
-        """
-        return self._tdx_memmap.col(column_number)
-        
-    def get_column_index(self, channel_group, channel, occurrence=0):
-        """Returns the column index of given channel group and channel indices.
-        
-        Parameters
-        ----------
-        channel_group : int
-            The index of the channel group.
-        channel : int or str
-            The index or name of the channel inside the group.
-        """
-        try:
-            if isinstance(channel, int):
-                if self._root.find(".//usi:include/file/block[@id='inc" + str(channel) + "']", self._namespace) is not None:
-                    return channel
-                else:
-                    return None
-
-            if channel_group < 0 or (isinstance(channel, int) and channel < 0):
-                raise IndexError()
-
-            ch_usi = self._get_tdm_channel_usi(channel_group, channel, occurrence=occurrence)
-            local_column_usi = re.findall(
-                "id\(\"(.+?)\"\)",
-               self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/local_columns")[0].text)[0]
-            data_usi = re.findall(
-                "id\(\"(.+?)\"\)",
-               self._root.findall(".//localcolumn[@id='" + str(local_column_usi) + "']/values")[0].text)[0]
-
-            for eid in self._root.findall(".//double_sequence/[@id='" + str(data_usi) + "']/values"):
-                ext_id = eid.get('external')
-
-            for eid in self._root.findall(".//long_sequence/[@id='" + str(data_usi) + "']/values"):
-                ext_id = eid.get('external')
-
-            for eid in self._root.findall(".//string_sequence/[@id='" + str(data_usi) + "']/values"):
-                ext_id = eid.get('external')
-
-            if ext_id is not None:
-                ch_number = int(re.findall("inc(\d+)", ext_id)[0])
-            else:
-                ch_number = None
-
-        except IndexError:
-            raise IndexError("Channel group " + str(channel_group) +
-                             " or Channel " + str(channel) + " not found")
-
-        except NameError:
-            raise NameError("Channel group " + str(channel_group) +
-                            " or Channel " + str(channel) + " is no long/double sequence")
-
-        return ch_number
-        
-    def get_channel_indices(self, column_index):
-        """Returns the channel group and channel indices of given column index.
-        
-        Parameters
-        ----------
-        column_index : int
-            The index of the column.
-        """
-        
-        try:
-            inc_usi = (self._root.findall(
-                ".//double_sequence/values"
-                + "[@external='inc" + str(column_index) + "']..") or
-               self._root.findall(
-                   ".//long_sequence/values"
-                   + "[@external='inc" + str(column_index) + "'].."))[0].get("id")
-                        
-        except IndexError:
-            raise IndexError("Column index " + str(column_index) + " out of range")
-        
-        try:
-            lcol_usi = [cg.get("id") for cg in self._root.findall(".//localcolumn")
-                        if cg is not None and inc_usi in cg.findall("values")[0].text][0]
-            
-            ch_usi = [cg.get("id") for cg in self._root.findall(".//tdm_channel")
-                      if cg is not None and lcol_usi in cg.findall("local_columns")[0].text][0]
-
-            chgs = [cg for cg in
-                    self._root.findall(".//tdm_channelgroup") if cg is not None]
-            
-            chg_usi = ""
-            for cg in chgs:
-                ch = cg.findall("channels")
-                if len(ch) > 0:
-                    if ch_usi in ch[0].text:
-                        chg_usi = cg.get("id")
-                     
-        except IndexError:
-            raise IndexError(
-                "Not able to associate the column index " + str(column_index) +
-                "to channel group / channel. Likely the tdm file is malformed.")
-
-        chgi = [x.attrib['id'] for x in self._root.findall(".//tdm_channelgroup")
-                if len(x.findall("channels")) > 0].index(chg_usi)
-        chg = [x for x in self._root.findall(".//tdm_channelgroup")
-               if x.attrib['id'] == chg_usi][0]
-        
-        channel_usis = re.findall(
-            "id\(\"(.+?)\"\)",
-            [x.text for x in chg.findall("channels") if x is not None][0])
-        ch = channel_usis.index(ch_usi)
-        
-        return chgi, ch
-        
     def channel(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         """Returns a data channel by its channel group and channel index.
         
@@ -355,26 +213,39 @@ class OpenFile(object):
         channel : int or str
             The index or name of the channel inside the group.
         occurrence : int, Optional
-            Gives the nth occurence of the channel group name. By default the first occurence is returned. 
+            Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
             This parameter is only used when channel_group is given as a string.
         ch_occurrence : int, Optional
-            Gives the nth occurence of the channel name. By default the first occurence is returned. 
+            Gives the nth occurrence of the channel name. By default the first occurrence is returned.
             This parameter is only used when channel_group is given as a string.
         """
-        
-        if isinstance(channel_group, int):
-            ch_number = self.get_column_index(channel_group, channel, occurrence=ch_occurrence)
 
-            if ch_number is None:
-                return []
-            else:
-                return self._tdx_memmap.col(ch_number)
-        elif isinstance(channel_group, str):
-            chg_ind = self.channel_group_index(channel_group, occurrence)
-        
-            return self.channel(chg_ind, channel, ch_occurrence=ch_occurrence)
+        ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
+
+        datatype = ch.findtext('datatype').split('_')[1].lower() + '_sequence'
+        lc_usi = OpenFile._get_usi_from_txt(ch.findtext('local_columns'))[0]
+        lc = self._root.find(".//localcolumn[@id='{0}']".format(lc_usi))
+        repr = lc.findtext('sequence_representation')
+        data_usi = OpenFile._get_usi_from_txt(lc.findtext('values'))[0]
+        inc = self._root.find(".//{0}[@id='{1}']/values".format(datatype, data_usi))
+
+        if inc.get('external') is None:
+            data = list(map(lambda x: x.text,
+                            self._root.findall(".//{0}[@id='{1}']/values/*".format(datatype, data_usi))))
         else:
-            raise TypeError("The given channel group parameter type is unsupported")
+            ext_attribs = self._root.find(".//file/block[@id='{0}']".format(inc.get('external'))).attrib
+
+            data = np.memmap(self._tdx_path,
+                             offset=int(ext_attribs['byteOffset']),
+                             shape=(int(ext_attribs['length']),),
+                             dtype=np.dtype(self._endian + DTYPE_CONVERTERS[ext_attribs['valueType']]),
+                             mode='r',
+                             order=self._tdx_order).view(np.recarray)
+
+        # ToDo: Support for implicit linear data
+        # if repr == 'implicit_linear':
+
+        return data
 
     def channel_dict(self, channel_group, occurrence=0):
         """Returns a dict representation of a channel group.
@@ -405,25 +276,23 @@ class OpenFile(object):
 
             return self.channel_dict(chg_ind)
 
-    def channel_name(self, channel_group, channel):
+    def channel_name(self, channel_group, channel, occurrence=0):
         """Returns the name of the channel at given channel group and channel indices.
         
         Parameters
         ----------
-        channel_group : int
+        channel_group : int or str
             The index of the channel group.
-        channel : int or str
+        channel : int
             The index or name of the channel inside the group.
+        occurrence : int
+            The nth occurrence of the channel_group name
         """
-        ch_usi = self._get_tdm_channel_usi(channel_group, channel)
-        name = self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/name")[0].text
+        ch = self._channel_xml(channel_group, channel, occurrence=occurrence)
 
-        if name is None:
-            return ""
-        else:
-            return name
-        
-    def channel_unit(self, channel_group, channel):
+        return ch.findtext('name')
+
+    def channel_unit(self, channel_group, channel, occurrence, ch_occurrence):
         """Returns the unit of the channel at given channel group and channel indices.
         
         Parameters
@@ -432,18 +301,33 @@ class OpenFile(object):
             The index of the channel group.
         channel : int or str
             The index or name of the channel inside the group.
+        occurrence : int
+            The nth occurrence of the channel group name
+        ch_occurrence : int
+            The nth occurrence of the channel name
         """
-        ch_usi = self._get_tdm_channel_usi(channel_group, channel)
-        
-        try:
-            unit = self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/unit_string")[0].text
-            if unit is None:
-                return ""
-            else:
-                return unit
-        except IndexError:
-            return ""
-        
+        ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
+
+        return ch.findtext('unit_string')
+
+    def channel_description(self, channel_group, channel, occurrence=0, ch_occurrence=0):
+        """Returns the description of the channel at given channel group and channel indices.
+
+        Parameters
+        ----------
+        channel_group : int or str
+            The index of the channel group.
+        channel : int or str
+            The index or name of the channel inside the group.
+        occurrence : int
+            The nth occurrence of the channel group name
+        ch_occurrence : int
+            The nth occurrence of the channel name
+        """
+        ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
+
+        return ch.findtext('description')
+
     def channel_group_name(self, channel_group):
         """Returns the name of the channel group at the channel group index.
         
@@ -456,10 +340,10 @@ class OpenFile(object):
             raise TypeError("Only integer values allowed.")
 
         try:
-            return [x.text for x in self._root.findall(".//tdm_channelgroup/name")][channel_group]
+            return [chg.findtext('name') for chg in self._xml_chgs][channel_group]
         except IndexError:
             raise IndexError("Channelgroup " + str(channel_group) + " out of range")
-            
+
     def channel_group_index(self, channel_group_name, occurrence=0):
         """Returns the index of a channel group with the given name.
         
@@ -474,11 +358,11 @@ class OpenFile(object):
             raise TypeError("Only str is accepted as input channel_group_name.")
         list_len = -1
         try:
-            chgn = [i 
-                    for i, x in enumerate(self._root.findall(".//tdm_channelgroup/name")) 
-                    if x.text == channel_group_name]
+            chgn = [i
+                    for i, chg in enumerate(self._xml_chgs)
+                    if chg.findtext('name') == channel_group_name]
             list_len = len(chgn)
-            
+
             return chgn[occurrence]
         except IndexError:
             if list_len == 0:
@@ -487,32 +371,11 @@ class OpenFile(object):
                 raise IndexError(
                     "The channel group name {0} does only occur {1} time(s)".format(channel_group_name, str(list_len)))
 
-    def channel_description(self, channel_group, channel):
-        """Returns the description of the channel at given channel group and channel indices.
-
-        Parameters
-        ----------
-        channel_group : int
-            The index of the channel group.
-        channel : int or str
-            The index or name of the channel inside the group.
-        """
-        ch_usi = self._get_tdm_channel_usi(channel_group, channel)
-
-        try:
-            description = self._root.findall(".//tdm_channel[@id='" + str(ch_usi) + "']/description")[0].text
-            if description is None:
-                return ""
-            else:
-                return description
-        except IndexError:
-            return ""
-
     def no_channel_groups(self):
         """Returns the total number of channel groups.
         """
-        return len([x.text for x in self._root.findall(".//tdm_channelgroup/channels")])
-        
+        return len(self._xml_chgs)
+
     def no_channels(self, channel_group):
         """Returns the total number of channels inside the given channel group.
 
@@ -521,27 +384,16 @@ class OpenFile(object):
         channel_group : int
             The index of the channel group.
         """
-        if not isinstance(channel_group, int):
-            raise TypeError("Only integer values allowed.")
+        if isinstance(channel_group, str):
+            return len(OpenFile._get_usi_from_txt(list(
+                filter(lambda x: x.findtext('name') == channel_group, self._xml_chgs))[0].findtext('channels')))
+        elif isinstance(channel_group, int):
+            if len(self._xml_chgs) <= channel_group or channel_group < 0:
+                raise IndexError('Channel group {0} out of range'.format(channel_group))
 
-        try:
-            channel_usis = [x.text for x in self._root.findall(".//tdm_channelgroup/channels")][channel_group]
-            clean_usis = re.findall("id\(\"(.+?)\"\)", channel_usis)
-
-            i = 0
-            for clean_usi in clean_usis:
-                if self._root.find(".//tdm_channel[@id='" + clean_usi + "']/datatype").text != 'DT_STRING':
-                    i += 1
-        except IndexError:
-            raise IndexError("Channelgroup " + str(channel_group) + " out of range")
-            
-        return i
-           
-    def close(self):
-        """Close the file.
-        """
-        if hasattr(self, '_tdx_fobj'):
-            self._tdx_fobj.close()
+            return len(OpenFile._get_usi_from_txt(self._xml_chgs[channel_group].findtext('channels')))
+        else:
+            raise TypeError('Unsupported channel_group type')
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
@@ -564,200 +416,12 @@ class OpenFile(object):
             raise TypeError("Unsupported parameter type.")
 
     def __len__(self):
-        return self.num_channels
-
-    def __del__(self):
-        self.close()
+        return self.no_channel_groups
 
     def __repr__(self):
         return ''.join(['NI TDM-TDX file\n',
-                       'TDM Path: ', os.path.join(self._folder,
-                                                  self._tdm_filename),
-                       '\nTDX Path: ', self._tdx_path, '\n',
-                       'Number of Channels: ',str(self.num_channels), '\n',
-                       'Channel Length: ', str(len(self)), '\n',
-                       'Memory Map Type: ', self._memmap_type])
+                        'TDM Path: ', os.path.join(self._folder, self._tdm_filename),
+                        '\nTDX Path: ', self._tdx_path, '\n',
+                        'Number of Channelgroups: ', str(self.no_channel_groups), '\n',
+                        'Channel Length: ', str(len(self))])
 
-
-class MemmapRowFirst(object):
-    """Wrapper class for opening row-ordered TDX files.  This is only needed
-    because NumPy memmap objects don't support [i,j] style indexing.
-    """
-    def __init__(self, fobj, tdm_file):
-        self._memmap = np.memmap(fobj, dtype=tdm_file.dtype,
-                                 mode='r').view(np.recarray)
-        self._col2name = {}
-        for i, channel in enumerate(tdm_file.channels):
-            self._col2name[i] = channel.name
-
-    def __getitem__(self, key):
-        try:
-            slices = key.indices(self.__len__()) # input is a slice object
-            ind = range(slices[0], slices[1], slices[2])
-            return self._memmap[ind]
-        except AttributeError:
-            pass
-        try:
-            return self._memmap[key] # input is a row number or column name
-        except IndexError:
-            return self._memmap[key[0]][key[1]] # input is a tuple
-
-    def __len__(self):
-        return len(self._memmap)
-
-    def col(self, col_num):
-        """Returns a data column by its index number.
-        """
-        return self._memmap[self._col2name[col_num]]
-
-
-class MemmapColumnFirst(object):
-    """Wrapper class for opening column-ordered TDX files.
-    """
-    def __init__(self, fobj, tdm_file):
-        self._memmap = []
-        self._name2col = {}
-        self._col2name = {}
-        self._num_channels = tdm_file.num_channels
-        self._empty_row = np.recarray((1, ), tdm_file.dtype)
-        self._empty_row[0] = 0  # initialize all items to zero
-        channels = tdm_file.channels
-        for i in range(len(channels)):
-            self._name2col[channels[i].name] = i
-            self._col2name[i] = channels[i].name
-            self._memmap.append(np.memmap(fobj,
-                                          offset=channels[i].byte_offset,
-                                          shape=(channels[i].length, ),
-                                          dtype=channels[i].dtype,
-                                          mode='r').view(np.recarray))
-
-    def __getitem__(self, key):
-        try:
-            slices = key.indices(self.__len__()) # input is a slice object
-            ind = range(slices[0], slices[1], slices[2])
-            row = self._empty_row.copy()
-            row = np.resize(row, (len(ind), ))
-            for rowi, i in enumerate(ind):
-                for j in range(self._num_channels):
-                    row[rowi][self._col2name[j]] = self._memmap[j][i]
-            return row
-        except AttributeError:
-            pass
-        try:
-            return self._memmap[self._name2col[key]] # input is a column name
-        except KeyError:
-            pass
-        try:
-            return self._memmap[key[1]][key[0]] # input is a tuple
-        except TypeError:
-            pass
-        row = self._empty_row.copy() # input is a row number
-        for j in range(self._num_channels):
-            row[0][self._col2name[j]] = self._memmap[j][key]
-        return row[0]
-
-    def __len__(self):
-        return len(self._memmap[0])
-
-    def col(self, col_num):
-        """Returns a data column by its index number.
-        """
-        return self._memmap[col_num]
-
-
-class ReadTDM(object):
-    """Class for parsing and storing data from a .TDM file.
-
-    Parameters
-    ----------
-    tdm_path : str
-        The full path to the .TDM file.
-    """
-    def __init__(self, tdm_path, encoding='utf-8'):
-        try:
-            self._xmltree = ElementTree.parse(tdm_path).getroot()
-        except IOError:
-            raise IOError('TDM file not found: ' + tdm_path)
-
-        self._namespace = {'usi': self._xmltree.tag.split('}')[0].strip('{')}
-
-        self._extract_file_props()
-        self._extract_channel_props()
-
-    def _extract_file_props(self):
-        """Extracts file data from a TDM file.
-        """
-        self.exporter_type = self._xmltree.find(".//usi:documentation/usi:exporter", self._namespace).text
-
-        fileprops = self._xmltree.find(".//usi:include/file", self._namespace)
-        self.tdx_filename = fileprops.get('url')
-        self.byte_order = fileprops.get('byteOrder')
-        if self.byte_order == 'littleEndian':
-            self._endian = '<'
-        elif self.byte_order == 'bigEndian':
-            self._endian = '>'
-        else:
-            raise TypeError('Unknown endian format in TDM file')
-
-    def _extract_channel_props(self):
-        """Extracts channel data from a TDM file.
-        """
-        channels = self._xmltree.findall(".//usi:data/tdm_channel", self._namespace)
-
-        formats = []
-        self.channels = []
-        for ch in channels:
-            usi = re.findall("id\(\"(.+?)\"\)", ch.find(".//local_columns").text)[0]
-            data_usi_et = self._xmltree.find(".//localcolumn[@id='" + str(usi) + "']/values")
-
-            if data_usi_et is None:
-                pass
-            else:
-                data_usi = re.findall("id\(\"(.+?)\"\)", data_usi_et.text)[0]
-                ext = self._xmltree.find(".//usi:data/*[@id='" + str(data_usi) + "']/values", self._namespace).get(
-                    'external')
-
-                if ext is None:
-                    continue  # Dirty fix for any data values without any binary representation
-                else:
-                    block = self._xmltree.find(".//usi:include/file/*[@id='" + ext + "']", self._namespace)
-                chan = ChannelData()
-                chan.byte_offset = int(block.get('byteOffset'))
-                chan.length = int(block.get('length'))
-                try:
-                    chan.dtype = self._convert_dtypes(block.get('valueType'))
-                except KeyError:
-                    raise TypeError('Unknown data type in TDM file. Channel ' + str(ch))
-
-                if ch.find('.//name') is None:
-                    chan.name = ''
-                else:
-                    chan.name = ch.find('.//name').text
-
-                self.channels.append(chan)
-                formats.append(chan.dtype)
-
-        self.num_channels = len(self.channels)
-        self.dtype = np.format_parser(formats, [], []).dtype
-
-    def _convert_dtypes(self, tdm_dtype):
-        """Convert a TDM data type to a NumPy data type.
-        """
-        # this will need to be adjusted to work with strings
-        # "endianness" doesn't matter, so NumPy uses the '|' symbol
-        return self._endian + DTYPE_CONVERTERS[tdm_dtype]
-
-
-class ChannelData(object):
-    """Stores data about a single data channel.
-    """
-    def __init__(self):
-        self.name = u''
-        self.dtype = u''
-        self.length = 0
-        self.byte_offset = 0
-
-    def __repr__(self):
-        return u''.join([u'name = ', self.name, u'\ndtype = ', self.dtype, u'\n',
-                        u'length = ', str(self.length), '\n',
-                        u'byte offset = ', str(self.byte_offset)])
