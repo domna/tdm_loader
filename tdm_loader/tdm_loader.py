@@ -26,9 +26,7 @@ Search for a column name.  A list of all column names that contain
 import os.path
 import re
 import xml.etree.ElementTree as ElementTree
-from codecs import open
 import warnings
-from typing import Dict
 
 import numpy as np
 
@@ -55,7 +53,8 @@ DTYPE_CONVERTERS = {'eInt8Usi': 'i1',
                     'eUInt32Usi': 'u4',
                     'eUInt64Usi': 'u8',
                     'eFloat32Usi': 'f4',
-                    'eFloat64Usi': 'f8'}
+                    'eFloat64Usi': 'f8',
+                    'eStringUsi': 'U'}
 
 
 class OpenFile(object):
@@ -99,7 +98,7 @@ class OpenFile(object):
         chs = self._channels_xml(channel_group, occurrence)
 
         if isinstance(channel, int):
-            if len(chs) <= channel or channel < 0:
+            if len(chs) <= channel or channel < -len(chs):
                 raise IndexError('Channel {0} out of range'.format(channel))
 
             ch = chs[channel]
@@ -116,13 +115,13 @@ class OpenFile(object):
 
     def _channels_xml(self, channel_group, occurrence=0):
         if isinstance(channel_group, int):
-            if len(self._xml_chgs) <= channel_group or channel_group < 0:
+            if len(self._xml_chgs) <= channel_group or channel_group < -len(self._xml_chgs):
                 raise IndexError('Channel group {0} out of range'.format(channel_group))
 
             chg = self._xml_chgs[channel_group]
         elif isinstance(channel_group, str):
             chgns = list(filter(lambda x: x.findtext('name') == channel_group, self._xml_chgs))
-            if len(chgns) < occurrence:
+            if len(chgns) <= occurrence:
                 raise IndexError('Channel group {0} (occurrence {1}) not found'.format(channel_group, occurrence))
 
             chg = chgns[occurrence]
@@ -136,7 +135,10 @@ class OpenFile(object):
 
     @staticmethod
     def _get_usi_from_txt(txt):
-        return re.findall("id\(\"(.+?)\"\)", txt)
+        if txt is None or txt.strip() == '':
+            return []
+        else:
+            return re.findall("id\(\"(.+?)\"\)", txt)
 
     def channel_group_search(self, search_term):
         """Returns a list of channel group names that contain ``search term``.
@@ -292,7 +294,7 @@ class OpenFile(object):
 
         return ch.findtext('name')
 
-    def channel_unit(self, channel_group, channel, occurrence, ch_occurrence):
+    def channel_unit(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         """Returns the unit of the channel at given channel group and channel indices.
         
         Parameters
@@ -388,7 +390,7 @@ class OpenFile(object):
             return len(OpenFile._get_usi_from_txt(list(
                 filter(lambda x: x.findtext('name') == channel_group, self._xml_chgs))[0].findtext('channels')))
         elif isinstance(channel_group, int):
-            if len(self._xml_chgs) <= channel_group or channel_group < 0:
+            if len(self._xml_chgs) <= channel_group or channel_group < -len(self._xml_chgs):
                 raise IndexError('Channel group {0} out of range'.format(channel_group))
 
             return len(OpenFile._get_usi_from_txt(self._xml_chgs[channel_group].findtext('channels')))
@@ -400,23 +402,18 @@ class OpenFile(object):
             if len(key) != 2:
                 raise IndexError(key)
             channel_group, channel = key
-            if isinstance(channel, int):
+
+            if (isinstance(channel_group, str) or isinstance(channel_group, int)) and (isinstance(channel, str) or isinstance(channel, int)):
                 return self.channel(channel_group, channel)
             else:
-                raise TypeError(channel)
-        elif isinstance(key, str):
-            channel_group, channel = self._name_to_indices[key]
-            if self.channel_names.count(key) > 1:
-                warnings.warn("More than one channel with the name '{}'."
-                              .format(key))
-            return self.channel(channel_group, channel)
-        elif isinstance(key, int):
+                raise TypeError('Unsupported parameter type.')
+        elif isinstance(key, int) or isinstance(key, str):
             return self[0, key]  # Use channel_group 0
         else:
             raise TypeError("Unsupported parameter type.")
 
     def __len__(self):
-        return self.no_channel_groups
+        return self.no_channel_groups()
 
     def __repr__(self):
         return ''.join(['NI TDM-TDX file\n',
