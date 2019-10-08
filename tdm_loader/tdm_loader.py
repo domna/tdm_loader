@@ -419,6 +419,6 @@ class OpenFile(object):
         return ''.join(['NI TDM-TDX file\n',
                         'TDM Path: ', os.path.join(self._folder, self._tdm_filename),
                         '\nTDX Path: ', self._tdx_path, '\n',
-                        'Number of Channelgroups: ', str(self.no_channel_groups), '\n',
+                        'Number of Channelgroups: ', str(self.no_channel_groups()), '\n',
                         'Channel Length: ', str(len(self))])
 
