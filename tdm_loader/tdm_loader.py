@@ -23,9 +23,13 @@ Search for a column name.  A list of all column names that contain
 
     data_file.channel_search(search_term)
 """
-import os.path
+#import os.path
+import os
+import io
+import zipfile
 import re
-import xml.etree.ElementTree as ElementTree
+#import xml.etree.ElementTree as ElementTree
+from xml.etree import ElementTree
 import warnings
 
 import numpy as np
@@ -70,10 +74,20 @@ class OpenFile(object):
         filename specified in the .TDM file will be used.
     """
 
+
     def __init__(self, tdm_path, tdx_path='', encoding='utf-8'):
         self._folder, self._tdm_filename = os.path.split(tdm_path)
+        
+        ## Handle zip-file
+        if zipfile.is_zipfile(tdm_path):
+            zip = zipfile.ZipFile(tdm_path)
+            assert len(zip.namelist()) == 1
+            file = zip.open(zip.namelist()[0]).read().decode('UTF-8')
+            file = io.StringIO(file)
+        else:
+            file = open(tdm_path, 'r')
 
-        self._root = ElementTree.parse(tdm_path).getroot()
+        self._root = ElementTree.parse(file).getroot()
         self._namespace = {'usi': self._root.tag.split('}')[0].strip('{')}
 
         self._xml_tdm_root = self._root.find('.//tdm_root')
@@ -93,6 +107,8 @@ class OpenFile(object):
             self._tdx_path = os.path.join(self._folder, self._root.find('.//file').get('url'))
         else:
             self._tdx_path = tdx_path
+
+
 
     def _channel_xml(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         chs = self._channels_xml(channel_group, occurrence)
@@ -223,31 +239,55 @@ class OpenFile(object):
         """
 
         ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
-
-        datatype = ch.findtext('datatype').split('_')[1].lower() + '_sequence'
-        lc_usi = OpenFile._get_usi_from_txt(ch.findtext('local_columns'))[0]
+        lc_usi = self._get_usi_from_txt(ch.findtext('local_columns'))[0]
         lc = self._root.find(".//localcolumn[@id='{0}']".format(lc_usi))
-        repr = lc.findtext('sequence_representation')
-        data_usi = OpenFile._get_usi_from_txt(lc.findtext('values'))[0]
-        inc = self._root.find(".//{0}[@id='{1}']/values".format(datatype, data_usi))
+        data_usi = self._get_usi_from_txt(lc.findtext('values'))[0]
+        inc = self._root.find(".//*[@id='{0}']".format(data_usi)).find('values').attrib['external']
+        ext_attribs = self._root.find(".//file/block[@id='{0}']".format(inc)).attrib
+        seqrep = lc.findtext('sequence_representation')
+        glfl = int(lc.findtext('global_flag'))
 
-        if inc.get('external') is None:
-            data = list(map(lambda x: x.text,
-                            self._root.findall(".//{0}[@id='{1}']/values/*".format(datatype, data_usi))))
+        subm_usi = self._get_usi_from_txt(lc.findtext('submatrix'))[0]
+        subm = self._root.find(".//submatrix[@id='{0}']".format(subm_usi))
+        nrows = int(subm.findtext('number_of_rows'))
+
+        data_block = np.memmap(self._tdx_path,
+                offset=int(ext_attribs['byteOffset']),
+                shape=(int(ext_attribs['length']),),
+                dtype=np.dtype(self._endian + DTYPE_CONVERTERS[ext_attribs['valueType']]),
+                mode='r',
+                order=self._tdx_order).view(np.recarray)
+
+        flags = lc.findall('flags')
+        if len(flags):
+            flags_inc = flags[0].attrib['external']
+            flags_attribs = self._root.find(".//file/block[@id='{0}']".format(flags_inc)).attrib
+            flags_block = np.memmap(self._tdx_path,
+                    offset=int(flags_attribs['byteOffset']),
+                    shape=(int(flags_attribs['length']),),
+                    dtype=np.dtype(self._endian + DTYPE_CONVERTERS[flags_attribs['valueType']]),
+                    mode='r',
+                    order=self._tdx_order).view(np.recarray)
+            nnans = np.where(flags_block==0)[0].shape[0]
         else:
-            ext_attribs = self._root.find(".//file/block[@id='{0}']".format(inc.get('external'))).attrib
+            nnans = 0
+            flags_block = glfl * np.ones((nrows,),int)
 
-            data = np.memmap(self._tdx_path,
-                             offset=int(ext_attribs['byteOffset']),
-                             shape=(int(ext_attribs['length']),),
-                             dtype=np.dtype(self._endian + DTYPE_CONVERTERS[ext_attribs['valueType']]),
-                             mode='r',
-                             order=self._tdx_order).view(np.recarray)
-
-        # ToDo: Support for implicit linear data
-        # if repr == 'implicit_linear':
-
-        return data
+        if seqrep == 'explicit':
+            column = np.array(data_block,float)
+            if nnans:
+                column[np.where(flags_block == 0)] = np.nan
+        elif seqrep == 'implicit_linear':
+            # for time channels. contins two float values for building time scale (constant step width)
+            column = np.array(range(0,nrows))*data_block[-1]
+        elif seqrep == 'raw_linear':
+            # mapped to proprtional integer scale. needs to be re-scaled to actual values
+            A,B = np.asarray(lc.findtext('generation_parameters').split(),float)
+            column = B * np.array(data_block) + A
+            if nnans:
+                column[np.where(flags_block == 0)] = np.nan
+        
+        return column
 
     def channel_dict(self, channel_group, occurrence=0):
         """Returns a dict representation of a channel group.
