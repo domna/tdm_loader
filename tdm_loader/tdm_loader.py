@@ -246,6 +246,8 @@ class OpenFile(object):
 
         # ToDo: Support for implicit linear data
         # if repr == 'implicit_linear':
+        # if repr == 'explicit':
+        # if repr == 'raw_linear':
 
         return data
 
