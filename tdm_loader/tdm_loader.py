@@ -24,6 +24,9 @@ Search for a column name.  A list of all column names that contain
     data_file.channel_search(search_term)
 """
 import os.path
+#import os
+import io
+import zipfile
 import re
 import xml.etree.ElementTree as ElementTree
 import warnings
@@ -70,8 +73,18 @@ class OpenFile(object):
         filename specified in the .TDM file will be used.
     """
 
+
     def __init__(self, tdm_path, tdx_path='', encoding='utf-8'):
         self._folder, self._tdm_filename = os.path.split(tdm_path)
+        
+        ## Handle zip-file
+        if zipfile.is_zipfile(tdm_path):
+            zip = zipfile.ZipFile(tdm_path)
+            assert len(zip.namelist()) == 1
+            file = zip.open(zip.namelist()[0]).read().decode('UTF-8')
+            file = io.StringIO(file)
+        else:
+            file = open(tdm_path, 'r')
 
         self._root = ElementTree.parse(tdm_path).getroot()
         self._namespace = {'usi': self._root.tag.split('}')[0].strip('{')}
@@ -93,6 +106,8 @@ class OpenFile(object):
             self._tdx_path = os.path.join(self._folder, self._root.find('.//file').get('url'))
         else:
             self._tdx_path = tdx_path
+
+
 
     def _channel_xml(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         chs = self._channels_xml(channel_group, occurrence)
