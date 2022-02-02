@@ -23,12 +23,13 @@ Search for a column name.  A list of all column names that contain
 
     data_file.channel_search(search_term)
 """
-import os.path
-#import os
+#import os.path
+import os
 import io
 import zipfile
 import re
-import xml.etree.ElementTree as ElementTree
+#import xml.etree.ElementTree as ElementTree
+from xml.etree import ElementTree
 import warnings
 
 import numpy as np
@@ -86,7 +87,7 @@ class OpenFile(object):
         else:
             file = open(tdm_path, 'r')
 
-        self._root = ElementTree.parse(tdm_path).getroot()
+        self._root = ElementTree.parse(file).getroot()
         self._namespace = {'usi': self._root.tag.split('}')[0].strip('{')}
 
         self._xml_tdm_root = self._root.find('.//tdm_root')
