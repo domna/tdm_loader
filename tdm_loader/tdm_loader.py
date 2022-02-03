@@ -9,9 +9,9 @@ Sample usage::
 
     import tdm_loader
     data_file = tdm_loader.OpenFile('filename.tdm')
-    
+
 Access a channel by channel group and channel index combination::
-    
+
     data_file.channel(channel_group, channel)
 
 Get a dict of all channels in a channel group:
@@ -23,45 +23,40 @@ Search for a column name.  A list of all column names that contain
 
     data_file.channel_search(search_term)
 """
-#import os.path
 import os
 import io
 import zipfile
 import re
-#import xml.etree.ElementTree as ElementTree
+
 from xml.etree import ElementTree
 import warnings
 
 import numpy as np
 
-try:
-    from matplotlib import pyplot as plt
 
-    plt_available = True
-except ImportError:
-    plt_available = False
-
-__all__ = ('OpenFile',)
+__all__ = ("OpenFile",)
 
 # XML "QName" in the TDM file
 # there has to be an easy way to determine this programmatically
-QNAME = '{http://www.ni.com/Schemas/USI/1_0}'
+QNAME = "{http://www.ni.com/Schemas/USI/1_0}"
 
 # dictionary for converting from NI to NumPy datatypes
-DTYPE_CONVERTERS = {'eInt8Usi': 'i1',
-                    'eInt16Usi': 'i2',
-                    'eInt32Usi': 'i4',
-                    'eInt64Usi': 'i8',
-                    'eUInt8Usi': 'u1',
-                    'eUInt16Usi': 'u2',
-                    'eUInt32Usi': 'u4',
-                    'eUInt64Usi': 'u8',
-                    'eFloat32Usi': 'f4',
-                    'eFloat64Usi': 'f8',
-                    'eStringUsi': 'U'}
+DTYPE_CONVERTERS = {
+    "eInt8Usi": "i1",
+    "eInt16Usi": "i2",
+    "eInt32Usi": "i4",
+    "eInt64Usi": "i8",
+    "eUInt8Usi": "u1",
+    "eUInt16Usi": "u2",
+    "eUInt32Usi": "u4",
+    "eUInt64Usi": "u8",
+    "eFloat32Usi": "f4",
+    "eFloat64Usi": "f8",
+    "eStringUsi": "U",
+}
 
 
-class OpenFile(object):
+class OpenFile:
     """Class for opening a National Instruments TDM/TDX file.
 
     Parameters
@@ -74,97 +69,115 @@ class OpenFile(object):
         filename specified in the .TDM file will be used.
     """
 
-
-    def __init__(self, tdm_path, tdx_path='', encoding='utf-8'):
+    def __init__(self, tdm_path, tdx_path="", encoding="utf-8"):
         self._folder, self._tdm_filename = os.path.split(tdm_path)
-        
-        ## Handle zip-file
+
         if zipfile.is_zipfile(tdm_path):
-            zip = zipfile.ZipFile(tdm_path)
-            assert len(zip.namelist()) == 1
-            file = zip.open(zip.namelist()[0]).read().decode('UTF-8')
-            file = io.StringIO(file)
+            with zipfile.ZipFile(tdm_path) as zipf:
+                if len(zipf.nameslist()) == 0:
+                    raise zipfile.BadZipFile(
+                        f"The compressed file {tdm_path} does not contain any readable files."
+                    )
+                with zipf.open(zip.namelist()[0]).read().decode(encoding) as file:
+                    self._root = ElementTree.parse(io.StringIO(file)).getroot()
         else:
-            file = open(tdm_path, 'r')
+            with open(tdm_path, "r", encoding=encoding) as file:
+                self._root = ElementTree.parse(file).getroot()
 
-        self._root = ElementTree.parse(file).getroot()
-        self._namespace = {'usi': self._root.tag.split('}')[0].strip('{')}
+        self._namespace = {"usi": self._root.tag.split("}")[0].strip("{")}
 
-        self._xml_tdm_root = self._root.find('.//tdm_root')
-        self._xml_chgs = list(map(lambda usi: self._root.find('.//tdm_channelgroup[@id=\'{0}\']'.format(usi)),
-                                  re.findall("id\(\"(.+?)\"\)", self._xml_tdm_root.findtext('channelgroups'))))
+        self._xml_tdm_root = self._root.find(".//tdm_root")
+        self._xml_chgs = list(
+            map(
+                lambda usi: self._root.find(f".//tdm_channelgroup[@id='{usi}']"),
+                re.findall(
+                    r'id\("(.+?)"\)', self._xml_tdm_root.findtext("channelgroups")
+                ),
+            )
+        )
 
-        byte_order = self._root.find('.//file').get('byteOrder')
-        if byte_order == 'littleEndian':
-            self._endian = '<'
-        elif byte_order == 'bigEndian':
-            self._endian = '>'
+        byte_order = self._root.find(".//file").get("byteOrder")
+        if byte_order == "littleEndian":
+            self._endian = "<"
+        elif byte_order == "bigEndian":
+            self._endian = ">"
         else:
-            raise TypeError('Unknown endian format in TDM file')
+            raise TypeError("Unknown endian format in TDM file")
 
-        self._tdx_order = 'C'  # Set binary file reading to column-major style
-        if tdx_path == '':
-            self._tdx_path = os.path.join(self._folder, self._root.find('.//file').get('url'))
+        self._tdx_order = "C"  # Set binary file reading to column-major style
+        if tdx_path == "":
+            self._tdx_path = os.path.join(
+                self._folder, self._root.find(".//file").get("url")
+            )
         else:
             self._tdx_path = tdx_path
-
-
 
     def _channel_xml(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         chs = self._channels_xml(channel_group, occurrence)
 
         if isinstance(channel, int):
             if len(chs) <= channel or channel < -len(chs):
-                raise IndexError('Channel {0} out of range'.format(channel))
+                raise IndexError(f"Channel {channel} out of range")
 
             ch = chs[channel]
         elif isinstance(channel, str):
-            chns = list(filter(lambda x: x.findtext('name') == channel, chs))
+            chns = list(filter(lambda x: x.findtext("name") == channel, chs))
             if len(chns) < ch_occurrence:
-                raise IndexError('Channel {0} (occurrence {1}) not found'.format(channel, ch_occurrence))
+                raise IndexError(
+                    f"Channel {channel} (occurrence {ch_occurrence}) not found"
+                )
 
             ch = chns[ch_occurrence]
         else:
-            raise TypeError('The given channel parameter type is unsupported')
+            raise TypeError("The given channel parameter type is unsupported")
 
         return ch
 
     def _channels_xml(self, channel_group, occurrence=0):
         if isinstance(channel_group, int):
-            if len(self._xml_chgs) <= channel_group or channel_group < -len(self._xml_chgs):
-                raise IndexError('Channel group {0} out of range'.format(channel_group))
+            if len(self._xml_chgs) <= channel_group or channel_group < -len(
+                self._xml_chgs
+            ):
+                raise IndexError(f"Channel group {channel_group} out of range")
 
             chg = self._xml_chgs[channel_group]
         elif isinstance(channel_group, str):
-            chgns = list(filter(lambda x: x.findtext('name') == channel_group, self._xml_chgs))
+            chgns = list(
+                filter(lambda x: x.findtext("name") == channel_group, self._xml_chgs)
+            )
             if len(chgns) <= occurrence:
-                raise IndexError('Channel group {0} (occurrence {1}) not found'.format(channel_group, occurrence))
+                raise IndexError(
+                    f"Channel group {channel_group} (occurrence {occurrence}) not found"
+                )
 
             chg = chgns[occurrence]
         else:
             raise TypeError("The given channel group parameter type is unsupported")
 
-        chs = list(map(lambda usi: self._root.find(".//tdm_channel[@id='{0}']".format(usi)),
-                       OpenFile._get_usi_from_txt(chg.findtext('channels'.format(chg.get('id'))))))
+        chs = list(
+            map(
+                lambda usi: self._root.find(f".//tdm_channel[@id='{usi}']"),
+                OpenFile._get_usi_from_txt(chg.findtext("channels")),
+            )
+        )
 
         return chs
 
     @staticmethod
     def _get_usi_from_txt(txt):
-        if txt is None or txt.strip() == '':
+        if txt is None or txt.strip() == "":
             return []
-        else:
-            return re.findall("id\(\"(.+?)\"\)", txt)
+        return re.findall(r'id\("(.+?)"\)', txt)
 
     def channel_group_search(self, search_term):
         """Returns a list of channel group names that contain ``search term``.
         Results are independent of case and spaces in the channel name.
-        
+
         Parameters
         ----------
             search_term : str
                 The term to search for in the channel group names
-        
+
         Returns
         -------
         found_terms : list of (str, int)
@@ -173,11 +186,17 @@ class OpenFile(object):
         if not isinstance(search_term, str):
             raise TypeError("I can search for str terms only.")
 
-        chg_names = [x.text for x in self._root.findall(".//tdm_channelgroup/name")
-                     if x.text is not None]
-        search_term = search_term.upper().replace(' ', '')
-        found_terms = [name for name in chg_names if
-                       name.upper().replace(' ', '').find(search_term) >= 0]
+        chg_names = [
+            x.text
+            for x in self._root.findall(".//tdm_channelgroup/name")
+            if x.text is not None
+        ]
+        search_term = search_term.upper().replace(" ", "")
+        found_terms = [
+            name
+            for name in chg_names
+            if name.upper().replace(" ", "").find(search_term) >= 0
+        ]
 
         ind = []
         for name in found_terms:
@@ -189,41 +208,54 @@ class OpenFile(object):
     def channel_search(self, search_term):
         """Returns a list of channel names that contain ``search term``.
         Results are independent of case and spaces in the channel name.
-        
+
         Parameters
         ----------
             search_term : str
                 The term to search for in the channel names
             return_column : bool
-                If True the function returns the column index instead of channel group and channel indices
-        
+                If True the function returns the column index instead
+                of channel group and channel indices
+
         Returns
         -------
-        found_terms : list of (str, int, int) or löist of (str, int) (latter case for return_column = True)
-            Returns the found channel names as tuple of full name and column index or channel group and channel indices
+        found_terms :
+            list of (str, int, int) or list of (str, int) (latter case for return_column = True)
+            Returns the found channel names as tuple of full name
+            and column index or channel group and channel indices
             depending on the value of return_column.
         """
-        search_term = str(search_term).upper().replace(' ', '')
+        search_term = str(search_term).upper().replace(" ", "")
 
         ind_chg_ch = []
-        for j, chg in enumerate(self._xml_chgs):
+        for j in range(len(self._xml_chgs)):
             chs = self._channels_xml(j)
 
             if search_term == "":
-                found_terms = [ch.findtext('name') for ch in chs if ch.findtext('name') is None]
+                found_terms = [
+                    ch.findtext("name") for ch in chs if ch.findtext("name") is None
+                ]
             else:
-                found_terms = [ch.findtext('name') for ch in chs if ch.findtext('name') is not None
-                               and ch.findtext('name').upper().replace(' ', '').find(str(search_term)) >= 0]
+                found_terms = [
+                    ch.findtext("name")
+                    for ch in chs
+                    if ch.findtext("name") is not None
+                    and ch.findtext("name")
+                    .upper()
+                    .replace(" ", "")
+                    .find(str(search_term))
+                    >= 0
+                ]
 
             for name in found_terms:
-                i = [ch.findtext('name') for ch in chs].index(name)
+                i = [ch.findtext("name") for ch in chs].index(name)
                 ind_chg_ch.append((name, j, i))
 
         return ind_chg_ch
 
     def channel(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         """Returns a data channel by its channel group and channel index.
-        
+
         Parameters
         ----------
         channel_group : int or str
@@ -231,62 +263,75 @@ class OpenFile(object):
         channel : int or str
             The index or name of the channel inside the group.
         occurrence : int, Optional
-            Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
+            Gives the nth occurrence of the channel group name.
+            By default the first occurrence is returned.
             This parameter is only used when channel_group is given as a string.
         ch_occurrence : int, Optional
-            Gives the nth occurrence of the channel name. By default the first occurrence is returned.
+            Gives the nth occurrence of the channel name.
+            By default the first occurrence is returned.
             This parameter is only used when channel_group is given as a string.
         """
 
         ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
-        lc_usi = self._get_usi_from_txt(ch.findtext('local_columns'))[0]
-        lc = self._root.find(".//localcolumn[@id='{0}']".format(lc_usi))
-        data_usi = self._get_usi_from_txt(lc.findtext('values'))[0]
-        inc = self._root.find(".//*[@id='{0}']".format(data_usi)).find('values').attrib['external']
-        ext_attribs = self._root.find(".//file/block[@id='{0}']".format(inc)).attrib
-        seqrep = lc.findtext('sequence_representation')
-        glfl = int(lc.findtext('global_flag'))
+        lc_usi = self._get_usi_from_txt(ch.findtext("local_columns"))[0]
+        lc = self._root.find(f".//localcolumn[@id='{lc_usi}']")
+        data_usi = self._get_usi_from_txt(lc.findtext("values"))[0]
+        inc = (
+            self._root.find(f".//*[@id='{data_usi}']").find("values").attrib["external"]
+        )
+        ext_attribs = self._root.find(f".//file/block[@id='{inc}']").attrib
+        seqrep = lc.findtext("sequence_representation")
+        glfl = int(lc.findtext("global_flag"))
 
-        subm_usi = self._get_usi_from_txt(lc.findtext('submatrix'))[0]
-        subm = self._root.find(".//submatrix[@id='{0}']".format(subm_usi))
-        nrows = int(subm.findtext('number_of_rows'))
+        subm_usi = self._get_usi_from_txt(lc.findtext("submatrix"))[0]
+        subm = self._root.find(f".//submatrix[@id='{subm_usi}']")
+        nrows = int(subm.findtext("number_of_rows"))
 
-        data_block = np.memmap(self._tdx_path,
-                offset=int(ext_attribs['byteOffset']),
-                shape=(int(ext_attribs['length']),),
-                dtype=np.dtype(self._endian + DTYPE_CONVERTERS[ext_attribs['valueType']]),
-                mode='r',
-                order=self._tdx_order).view(np.recarray)
+        data_block = np.memmap(
+            self._tdx_path,
+            offset=int(ext_attribs["byteOffset"]),
+            shape=(int(ext_attribs["length"]),),
+            dtype=np.dtype(self._endian + DTYPE_CONVERTERS[ext_attribs["valueType"]]),
+            mode="r",
+            order=self._tdx_order,
+        ).view(np.recarray)
 
-        flags = lc.findall('flags')
+        flags = lc.findall("flags")
         if len(flags):
-            flags_inc = flags[0].attrib['external']
-            flags_attribs = self._root.find(".//file/block[@id='{0}']".format(flags_inc)).attrib
-            flags_block = np.memmap(self._tdx_path,
-                    offset=int(flags_attribs['byteOffset']),
-                    shape=(int(flags_attribs['length']),),
-                    dtype=np.dtype(self._endian + DTYPE_CONVERTERS[flags_attribs['valueType']]),
-                    mode='r',
-                    order=self._tdx_order).view(np.recarray)
-            nnans = np.where(flags_block==0)[0].shape[0]
+            flags_inc = flags[0].attrib["external"]
+            flags_attribs = self._root.find(f".//file/block[@id='{flags_inc}']").attrib
+            flags_block = np.memmap(
+                self._tdx_path,
+                offset=int(flags_attribs["byteOffset"]),
+                shape=(int(flags_attribs["length"]),),
+                dtype=np.dtype(
+                    self._endian + DTYPE_CONVERTERS[flags_attribs["valueType"]]
+                ),
+                mode="r",
+                order=self._tdx_order,
+            ).view(np.recarray)
+            nnans = np.where(flags_block == 0)[0].shape[0]
         else:
             nnans = 0
-            flags_block = glfl * np.ones((nrows,),int)
+            flags_block = glfl * np.ones((nrows,), int)
 
-        if seqrep == 'explicit':
-            column = np.array(data_block,float)
+        if seqrep == "explicit":
+            column = np.array(data_block, float)
             if nnans:
                 column[np.where(flags_block == 0)] = np.nan
-        elif seqrep == 'implicit_linear':
-            # for time channels. contins two float values for building time scale (constant step width)
-            column = np.array(range(0,nrows))*data_block[-1]
-        elif seqrep == 'raw_linear':
+        elif seqrep == "implicit_linear":
+            # for time channels. contins two float values
+            # for building time scale (constant step width)
+            column = np.array(range(0, nrows)) * data_block[-1]
+        elif seqrep == "raw_linear":
             # mapped to proprtional integer scale. needs to be re-scaled to actual values
-            A,B = np.asarray(lc.findtext('generation_parameters').split(),float)
-            column = B * np.array(data_block) + A
+            offset, slope = np.asarray(
+                lc.findtext("generation_parameters").split(), float
+            )
+            column = slope * np.array(data_block) + offset
             if nnans:
                 column[np.where(flags_block == 0)] = np.nan
-        
+
         return column
 
     def channel_dict(self, channel_group, occurrence=0):
@@ -297,8 +342,11 @@ class OpenFile(object):
         channel_group : int or str
             The index or name of the channel group.
         occurrence : int
-            Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
+            Gives the nth occurrence of the channel group name.
+            By default the first occurrence is returned.
             This parameter is only used when channel_group is given as a string."""
+        if not isinstance(channel_group, (int, str)):
+            raise ValueError("channel_group must be an integer or a string")
 
         if isinstance(channel_group, int):
             channel_dict = {}
@@ -310,17 +358,15 @@ class OpenFile(object):
                     name_doublets.add(name)
                 channel_dict[name] = np.array(ch)
             if len(name_doublets) > 0:
-                warnings.warn("Duplicate channel name(s): {}"
-                              .format(name_doublets))
+                warnings.warn(f"Duplicate channel name(s): {name_doublets}")
             return channel_dict
-        elif isinstance(channel_group, str):
-            chg_ind = self.channel_group_index(channel_group, occurrence)
 
-            return self.channel_dict(chg_ind)
+        chg_ind = self.channel_group_index(channel_group, occurrence)
+        return self.channel_dict(chg_ind)
 
     def channel_name(self, channel_group, channel, occurrence=0):
         """Returns the name of the channel at given channel group and channel indices.
-        
+
         Parameters
         ----------
         channel_group : int or str
@@ -332,11 +378,11 @@ class OpenFile(object):
         """
         ch = self._channel_xml(channel_group, channel, occurrence=occurrence)
 
-        return ch.findtext('name')
+        return ch.findtext("name")
 
     def channel_unit(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         """Returns the unit of the channel at given channel group and channel indices.
-        
+
         Parameters
         ----------
         channel_group : int
@@ -350,9 +396,11 @@ class OpenFile(object):
         """
         ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
 
-        return ch.findtext('unit_string')
+        return ch.findtext("unit_string")
 
-    def channel_description(self, channel_group, channel, occurrence=0, ch_occurrence=0):
+    def channel_description(
+        self, channel_group, channel, occurrence=0, ch_occurrence=0
+    ):
         """Returns the description of the channel at given channel group and channel indices.
 
         Parameters
@@ -368,11 +416,11 @@ class OpenFile(object):
         """
         ch = self._channel_xml(channel_group, channel, occurrence, ch_occurrence)
 
-        return ch.findtext('description')
+        return ch.findtext("description")
 
     def channel_group_name(self, channel_group):
         """Returns the name of the channel group at the channel group index.
-        
+
         Parameters
         ----------
         channel_group : int
@@ -382,40 +430,46 @@ class OpenFile(object):
             raise TypeError("Only integer values allowed.")
 
         try:
-            return [chg.findtext('name') for chg in self._xml_chgs][channel_group]
-        except IndexError:
-            raise IndexError("Channelgroup " + str(channel_group) + " out of range")
+            return [chg.findtext("name") for chg in self._xml_chgs][channel_group]
+        except IndexError as err:
+            raise IndexError(f"Channelgroup {channel_group} out of range") from err
 
     def channel_group_index(self, channel_group_name, occurrence=0):
         """Returns the index of a channel group with the given name.
-        
+
         Parameters
         ----------
         channel_group_name : str
             The name of the channel group.
         occurrence : int, Optional
-            Gives the nth occurrence of the channel group name. By default the first occurrence is returned.
+            Gives the nth occurrence of the channel group name.
+            By default the first occurrence is returned.
         """
         if not isinstance(channel_group_name, str):
             raise TypeError("Only str is accepted as input channel_group_name.")
         list_len = -1
         try:
-            chgn = [i
-                    for i, chg in enumerate(self._xml_chgs)
-                    if chg.findtext('name') == channel_group_name]
+            chgn = [
+                i
+                for i, chg in enumerate(self._xml_chgs)
+                if chg.findtext("name") == channel_group_name
+            ]
             list_len = len(chgn)
 
             return chgn[occurrence]
-        except IndexError:
+        except IndexError as err:
             if list_len == 0:
-                raise ValueError("Channel group name {0} does not exist".format(channel_group_name))
-            else:
-                raise IndexError(
-                    "The channel group name {0} does only occur {1} time(s)".format(channel_group_name, str(list_len)))
+                raise ValueError(
+                    f"Channel group name {channel_group_name} does not exist"
+                ) from err
+
+            raise IndexError(
+                f"The channel group name {channel_group_name} "
+                f"does only occur {str(list_len)} time(s)"
+            ) from err
 
     def no_channel_groups(self):
-        """Returns the total number of channel groups.
-        """
+        """Returns the total number of channel groups."""
         return len(self._xml_chgs)
 
     def no_channels(self, channel_group):
@@ -427,15 +481,29 @@ class OpenFile(object):
             The index of the channel group.
         """
         if isinstance(channel_group, str):
-            return len(OpenFile._get_usi_from_txt(list(
-                filter(lambda x: x.findtext('name') == channel_group, self._xml_chgs))[0].findtext('channels')))
+            return len(
+                OpenFile._get_usi_from_txt(
+                    list(
+                        filter(
+                            lambda x: x.findtext("name") == channel_group,
+                            self._xml_chgs,
+                        )
+                    )[0].findtext("channels")
+                )
+            )
         elif isinstance(channel_group, int):
-            if len(self._xml_chgs) <= channel_group or channel_group < -len(self._xml_chgs):
-                raise IndexError('Channel group {0} out of range'.format(channel_group))
+            if len(self._xml_chgs) <= channel_group or channel_group < -len(
+                self._xml_chgs
+            ):
+                raise IndexError(f"Channel group {channel_group} out of range")
 
-            return len(OpenFile._get_usi_from_txt(self._xml_chgs[channel_group].findtext('channels')))
+            return len(
+                OpenFile._get_usi_from_txt(
+                    self._xml_chgs[channel_group].findtext("channels")
+                )
+            )
         else:
-            raise TypeError('Unsupported channel_group type')
+            raise TypeError("Unsupported channel_group type")
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
@@ -443,10 +511,12 @@ class OpenFile(object):
                 raise IndexError(key)
             channel_group, channel = key
 
-            if (isinstance(channel_group, str) or isinstance(channel_group, int)) and (isinstance(channel, str) or isinstance(channel, int)):
+            if (isinstance(channel_group, str) or isinstance(channel_group, int)) and (
+                isinstance(channel, str) or isinstance(channel, int)
+            ):
                 return self.channel(channel_group, channel)
             else:
-                raise TypeError('Unsupported parameter type.')
+                raise TypeError("Unsupported parameter type.")
         elif isinstance(key, int) or isinstance(key, str):
             return self[0, key]  # Use channel_group 0
         else:
@@ -456,9 +526,18 @@ class OpenFile(object):
         return self.no_channel_groups()
 
     def __repr__(self):
-        return ''.join(['NI TDM-TDX file\n',
-                        'TDM Path: ', os.path.join(self._folder, self._tdm_filename),
-                        '\nTDX Path: ', self._tdx_path, '\n',
-                        'Number of Channelgroups: ', str(self.no_channel_groups()), '\n',
-                        'Channel Length: ', str(len(self))])
-
+        return "".join(
+            [
+                "NI TDM-TDX file\n",
+                "TDM Path: ",
+                os.path.join(self._folder, self._tdm_filename),
+                "\nTDX Path: ",
+                self._tdx_path,
+                "\n",
+                "Number of Channelgroups: ",
+                str(self.no_channel_groups()),
+                "\n",
+                "Channel Length: ",
+                str(len(self)),
+            ]
+        )
