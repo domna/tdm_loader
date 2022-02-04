@@ -16,6 +16,7 @@ def get_file_dir(request):
 
 
 @pytest.fixture(scope="module")
+# pylint: disable=redefined-outer-name
 def tdm_file(get_file_dir):
     """Fixture for loading a test tdm file"""
     path = f"{get_file_dir}/2021-02-26_07-55-01.TDM"
@@ -23,6 +24,7 @@ def tdm_file(get_file_dir):
     return data
 
 
+# pylint: disable=redefined-outer-name
 def test_explicit_sequence_representation(get_file_dir, tdm_file):
     """Handles explicit sequence representation channels correctly"""
     print(f"{get_file_dir}/channel15.txt")
@@ -32,6 +34,7 @@ def test_explicit_sequence_representation(get_file_dir, tdm_file):
     assert tdm_file.channel_name(1, 5) == "eps_HAC_RE_CIT_UN_c_Offset"
 
 
+# pylint: disable=redefined-outer-name
 def test_linear_implicit_repr(get_file_dir, tdm_file):
     """Handles linear_implicit sequence representation correctly"""
     assert_array_equal(
@@ -41,6 +44,7 @@ def test_linear_implicit_repr(get_file_dir, tdm_file):
     assert tdm_file.channel(0, 1).shape == (11316,)
 
 
+# pylint: disable=redefined-outer-name
 def test_raw_linear_repr(get_file_dir, tdm_file):
     """Handles linear_implicit sequence representation correctly"""
     assert tdm_file.channel_name(0, 15) == "F___Zylinder_02"

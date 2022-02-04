@@ -1,9 +1,9 @@
 This module allows National Instruments TDM/TDX files to be accessed like
 NumPy structured arrays.
 
-It can be installed in the standard way::
+To install the newest version use::
 
-    python setup.py install
+    pip install tdm-loader
 
 Sample usage::
 
