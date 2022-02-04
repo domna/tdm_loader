@@ -1,6 +1,5 @@
 """Unittests for tdm_loader"""
 import os
-from distutils import dir_util
 import pytest
 import numpy as np
 

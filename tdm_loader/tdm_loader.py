@@ -74,12 +74,12 @@ class OpenFile:
 
         if zipfile.is_zipfile(tdm_path):
             with zipfile.ZipFile(tdm_path) as zipf:
-                if len(zipf.nameslist()) == 0:
+                if len(zipf.namelist()) == 0:
                     raise zipfile.BadZipFile(
                         f"The compressed file {tdm_path} does not contain any readable files."
                     )
-                with zipf.open(zip.namelist()[0]).read().decode(encoding) as file:
-                    self._root = ElementTree.parse(io.StringIO(file)).getroot()
+                with zipf.open(zipf.namelist()[0]) as file:
+                    self._root = ElementTree.parse(file).getroot()
         else:
             with open(tdm_path, "r", encoding=encoding) as file:
                 self._root = ElementTree.parse(file).getroot()
