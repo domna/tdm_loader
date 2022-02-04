@@ -1,3 +1,7 @@
+[![PyPI](https://img.shields.io/pypi/v/tdm_loader)](https://pypi.org/project/tdm_loader/)
+[![Pytest](https://github.com/domna/tdm_loader/actions/workflows/pytest.yml/badge.svg)](https://github.com/domna/tdm_loader/actions/workflows/pytest.yml)
+[![Documentation Status](https://readthedocs.org/projects/tdm_loader/badge/?version=latest)](https://tdm-loader.readthedocs.io/en/latest/?badge=latest)
+
 This module allows National Instruments TDM/TDX files to be accessed like
 NumPy structured arrays.
 
