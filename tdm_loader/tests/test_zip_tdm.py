@@ -19,7 +19,7 @@ def get_file_dir(request):
 # pylint: disable=redefined-outer-name
 def tdm_file(get_file_dir):
     """Fixture for loading a test tdm file"""
-    path = f"{get_file_dir}/2021-02-26_07-55-01.TDM"
+    path = f"{get_file_dir}/2021-02-26_07-55-01.tdm"
     data = tdm.OpenFile(str(path))
     return data
 
