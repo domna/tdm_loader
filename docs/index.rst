@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to tdm_loader's documentation!
+tdm_loader
 ======================================
 
 Contents:
@@ -13,11 +13,6 @@ Contents:
 
 .. autoclass:: tdm_loader.tdm_loader.OpenFile
    :members:
-
-.. autoclass:: tdm_loader.tdm_loader.ReadTDM
-   :members:
-
-
 
 Indices and tables
 ==================

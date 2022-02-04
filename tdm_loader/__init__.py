@@ -1,9 +1,15 @@
-import os
-
+import sys
 from .tdm_loader import *
 
+if sys.version_info.major >= 3 and sys.version_info.minor > 7:
+    from importlib.metadata import PackageNotFoundError, version
+else:
+    from importlib_metadata import PackageNotFoundError, version
+
 try:
-    with open(os.path.join(os.path.dirname(__file__), 'VERSION'), 'r') as fobj:
-        __version__ = fobj.read().strip()
-except IOError:
-    __version__ = 'unknown'
+    dist_name = __name__
+    __version__ = version(dist_name)
+except PackageNotFoundError:
+    __version__ = "unknown"
+finally:
+    del version, PackageNotFoundError
