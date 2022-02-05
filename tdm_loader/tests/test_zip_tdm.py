@@ -27,7 +27,6 @@ def tdm_file(get_file_dir):
 # pylint: disable=redefined-outer-name
 def test_explicit_sequence_representation(get_file_dir, tdm_file):
     """Handles explicit sequence representation channels correctly"""
-    print(f"{get_file_dir}/channel15.txt")
     assert_array_equal(
         tdm_file.channel(1, 5), np.loadtxt(f"{get_file_dir}/channel15.txt")
     )
@@ -46,7 +45,7 @@ def test_linear_implicit_repr(get_file_dir, tdm_file):
 
 # pylint: disable=redefined-outer-name
 def test_raw_linear_repr(get_file_dir, tdm_file):
-    """Handles linear_implicit sequence representation correctly"""
+    """Handles raw_linear sequence representation correctly"""
     assert tdm_file.channel_name(0, 15) == "F___Zylinder_02"
     assert_array_equal(
         tdm_file.channel(0, 15), np.loadtxt(f"{get_file_dir}/channel015.txt")
