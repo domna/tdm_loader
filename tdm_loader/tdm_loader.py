@@ -321,7 +321,8 @@ class OpenFile:
         elif seqrep == "implicit_linear":
             # for time channels. contins two float values
             # for building time scale (constant step width)
-            column = np.array(range(0, nrows)) * data_block[-1]
+            offset = data_block[0]
+            column = np.array(range(0, nrows)) * data_block[-1] + offset 
         elif seqrep == "raw_linear":
             # mapped to proprtional integer scale. needs to be re-scaled to actual values
             offset, slope = np.asarray(
