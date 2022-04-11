@@ -37,6 +37,16 @@ def test_explicit_sequence_representation(get_file_dir, tdm_file):
 def test_linear_implicit_repr(get_file_dir, tdm_file):
     """Handles linear_implicit sequence representation correctly"""
     assert_array_equal(
+        tdm_file.channel(0, 0), np.loadtxt(f"{get_file_dir}/channel00.txt")
+    )
+    assert tdm_file.channel_name(0, 0) == "Zeit_[200Hz]-rel"
+    assert tdm_file.channel(0, 0).shape == (11316,)
+
+
+# pylint: disable=redefined-outer-name
+def test_linear_implicit_repr_with_offset(get_file_dir, tdm_file):
+    """Handles linear_implicit sequence representation with offset correctly"""
+    assert_array_equal(
         tdm_file.channel(0, 1), np.loadtxt(f"{get_file_dir}/channel01.txt")
     )
     assert tdm_file.channel_name(0, 1) == "Zeit_[200Hz]-abs"
