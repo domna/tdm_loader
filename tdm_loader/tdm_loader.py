@@ -326,7 +326,7 @@ class OpenFile:
                 epoch_difference_seconds = -2082844800
                 s = (data_block.field(1) + epoch_difference_seconds).astype("datetime64[s]")
                 ns = (data_block.field(0) * 2**(-64) * 1e18).astype("timedelta64[as]").astype("timedelta64[ns]")
-                column = s - ns
+                column = s + ns
             else:
                 column = np.array(data_block, float)
             if nnans:
