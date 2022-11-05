@@ -286,11 +286,18 @@ class OpenFile:
         subm = self._root.find(f".//submatrix[@id='{subm_usi}']")
         nrows = int(subm.findtext("number_of_rows"))
 
+        valueType = ext_attribs["valueType"]
+        if valueType == "eTimeUsi":
+            endian = self._endian
+            dtype = np.dtype([("big", endian + "u8"), ("li", endian + "i8")])
+        else:
+            dtype = np.dtype(self._endian + DTYPE_CONVERTERS[valueType])
+
         data_block = np.memmap(
             self._tdx_path,
             offset=int(ext_attribs["byteOffset"]),
             shape=(int(ext_attribs["length"]),),
-            dtype=np.dtype(self._endian + DTYPE_CONVERTERS[ext_attribs["valueType"]]),
+            dtype=dtype,
             mode="r",
             order=self._tdx_order,
         ).view(np.recarray)
@@ -315,7 +322,13 @@ class OpenFile:
             flags_block = glfl * np.ones((nrows,), int)
 
         if seqrep == "explicit":
-            column = np.array(data_block, float)
+            if valueType == "eTimeUsi":
+                epoch_difference_seconds = -2082844800
+                s = (data_block.field(1) + epoch_difference_seconds).astype("datetime64[s]")
+                ns = (data_block.field(0) * 2**(-64) * 1e18).astype("timedelta64[as]").astype("timedelta64[ns]")
+                column = s - ns
+            else:
+                column = np.array(data_block, float)
             if nnans:
                 column[np.where(flags_block == 0)] = np.nan
         elif seqrep == "implicit_linear":
