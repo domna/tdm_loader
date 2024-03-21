@@ -185,11 +185,11 @@ class OpenFile:
         if not isinstance(search_term, str):
             raise TypeError("I can search for str terms only.")
 
-        group_names = {}
-        chg_names = []
-        for x in self._root.findall(".//tdm_channelgroup/name"):
-            if x.text is not None:
-                chg_names.append(x.text)
+        chg_names = [
+            x.text
+            for x in self._root.findall(".//tdm_channelgroup/name")
+            if x.text is not None
+        ]
 
         search_term = search_term.upper().replace(" ", "")
         found_terms = [
