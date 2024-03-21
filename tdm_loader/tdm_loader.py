@@ -190,7 +190,6 @@ class OpenFile:
             for x in self._root.findall(".//tdm_channelgroup/name")
             if x.text is not None
         ]
-
         search_term = search_term.upper().replace(" ", "")
         found_terms = [
             name
