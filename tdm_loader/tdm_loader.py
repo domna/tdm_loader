@@ -204,7 +204,7 @@ class OpenFile:
                i = self.channel_group_index(name, occurence)
                ind.append((name, i))
 
-        return ind
+        return set(ind)
 
     def channel_search(self, search_term):
         """Returns a list of channel names that contain ``search term``.
