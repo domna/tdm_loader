@@ -189,17 +189,13 @@ class OpenFile:
         chg_names = []
         for x in self._root.findall(".//tdm_channelgroup/name"):
             if x.text is not None:
-                if x.text not in group_names:
-                    group_names[x.text] = 0
-                else:
-                    group_names[x.text] += 1
-                chg_names.append((f"{x.text}", group_names[x.text]))
+                chg_names.append(x.text)
 
         search_term = search_term.upper().replace(" ", "")
         found_terms = [
             name
             for name in chg_names
-            if name[0].upper().replace(" ", "").find(search_term) >= 0
+            if name.upper().replace(" ", "").find(search_term) >= 0
         ]
 
         ind = []
