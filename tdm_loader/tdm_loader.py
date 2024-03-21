@@ -199,12 +199,15 @@ class OpenFile:
         ]
 
         ind = []
+        occurences = {}
         for name in found_terms:
-            for occurence in range(found_terms.count(name)):
-               i = self.channel_group_index(name, occurence)
-               ind.append((name, i))
+            if name not in occurences:
+                occurences[name] = True
+                for occurence in range(found_terms.count(name)):
+                   i = self.channel_group_index(name, occurence)
+                   ind.append((name, i))
 
-        return set(ind)
+        return ind
 
     def channel_search(self, search_term):
         """Returns a list of channel names that contain ``search term``.
