@@ -199,7 +199,6 @@ class OpenFile:
         ]
 
         ind = []
-        occurences = {}
         for name in found_terms:
             for occurence in range(found_terms.count(name)):
                 i = self.channel_group_index(name, occurence)
