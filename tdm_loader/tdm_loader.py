@@ -204,8 +204,9 @@ class OpenFile:
 
         ind = []
         for name in found_terms:
-            i = self.channel_group_index(name[0], name[1])
-            ind.append((name[0], i))
+            for occurence in range(found_terms.count(name)):
+               i = self.channel_group_index(name, occurence)
+               ind.append((name, i))
 
         return ind
 
