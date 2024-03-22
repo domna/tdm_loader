@@ -199,8 +199,10 @@ class OpenFile:
 
         ind = []
         for name in found_terms:
-            i = chg_names.index(name)
-            ind.append((name, i))
+            for occurence in range(found_terms.count(name)):
+                i = self.channel_group_index(name, occurence)
+                if (name, i) not in ind:
+                    ind.append((name, i))
 
         return ind
 
