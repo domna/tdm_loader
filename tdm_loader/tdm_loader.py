@@ -240,7 +240,7 @@ class OpenFile:
                 group_id = channel_group_ids.get(group_uri[0])
                 channels = get_channels(group_id)
 
-                channel_id = channels.get(channel_id)
+                channel_id = channels.get(channel.get("id"))
 
                 if channel_name.upper().replace(" ", "").find(search_term) >= 0:
                     matched_channels.append((channel_name, group_id, channel_id))
