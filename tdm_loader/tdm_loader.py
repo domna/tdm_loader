@@ -238,7 +238,7 @@ class OpenFile:
                 channel_id = channel.get("id")
                 group_uri = re.findall(r'id\("(.+?)"\)', channel.find("group").text)
                 group_id = channel_group_ids.get(group_uri[0])
-                channels = channel_groups_cache.get(group_id)
+                channels = get_channels(group_id)
 
                 if not channels:
                     group = self._xml_chgs[group_id]
