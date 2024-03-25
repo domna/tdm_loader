@@ -26,6 +26,7 @@ Search for a column name.  A list of all column names that contain
 import os
 import zipfile
 import re
+from functools import cache
 
 from xml.etree import ElementTree
 import warnings
@@ -168,6 +169,11 @@ class OpenFile:
             return []
         return re.findall(r'id\("(.+?)"\)', txt)
 
+    @cache
+    def get_channels(self, group_id):
+        group = self._xml_chgs[group_id]
+        return {v: i for i, v in enumerate(re.findall(r'id\("(.+?)"\)', group.find("channels").text))}
+
     def channel_group_search(self, search_term):
         """Returns a list of channel group names that contain ``search term``.
         Results are independent of case and spaces in the channel name.
@@ -236,7 +242,7 @@ class OpenFile:
             if channel_name:
                 group_uri = re.findall(r'id\("(.+?)"\)', channel.find("group").text)
                 group_id = channel_group_ids.get(group_uri[0])
-                channels = get_channels(group_id)
+                channels = self.get_channels(group_id)
 
                 channel_id = channels.get(channel.get("id"))
 
