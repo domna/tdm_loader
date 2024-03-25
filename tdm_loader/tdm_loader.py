@@ -242,7 +242,7 @@ class OpenFile:
             if channel_name:
                 group_uri = re.findall(r'id\("(.+?)"\)', channel.find("group").text)
                 group_id = channel_group_ids.get(group_uri[0])
-                channels = self.get_channels(group_id)
+                channels = self._get_channels(group_id)
 
                 channel_id = channels.get(channel.get("id"))
 
