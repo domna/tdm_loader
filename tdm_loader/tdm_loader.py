@@ -229,7 +229,6 @@ class OpenFile:
         search_term = str(search_term).upper().replace(" ", "")
 
         matched_channels = []
-        channel_groups_cache = {}
         channel_group_ids = {v: i for i, v in enumerate(x.get("id") for x in self._xml_chgs)}
 
         for channel in self._root.findall(".//tdm_channel"):
