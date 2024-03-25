@@ -233,7 +233,8 @@ class OpenFile:
         channel_group_ids = {v: i for i, v in enumerate(x.get("id") for x in self._xml_chgs)}
 
         for channel in self._root.findall(".//tdm_channel"):
-            if channel_name := channel.find("name").text:
+            channel_name = channel.find("name").text
+            if channel_name:
                 channel_id = channel.get("id")
                 group_uri = re.findall(r'id\("(.+?)"\)', channel.find("group").text)
                 group_id = channel_group_ids.get(group_uri[0])
