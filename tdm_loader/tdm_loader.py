@@ -170,7 +170,7 @@ class OpenFile:
         return re.findall(r'id\("(.+?)"\)', txt)
 
     @cache
-    def get_channels(self, group_id):
+    def _get_channels(self, group_id):
         group = self._xml_chgs[group_id]
         return {v: i for i, v in enumerate(re.findall(r'id\("(.+?)"\)', group.find("channels").text))}
 
