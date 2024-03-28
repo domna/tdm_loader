@@ -26,6 +26,7 @@ Search for a column name.  A list of all column names that contain
 import os
 import zipfile
 import re
+from functools import cache
 
 from xml.etree import ElementTree
 import warnings
@@ -168,6 +169,11 @@ class OpenFile:
             return []
         return re.findall(r'id\("(.+?)"\)', txt)
 
+    @cache
+    def _get_channels(self, group_id):
+        group = self._xml_chgs[group_id]
+        return {v: i for i, v in enumerate(re.findall(r'id\("(.+?)"\)', group.find("channels").text))}
+
     def channel_group_search(self, search_term):
         """Returns a list of channel group names that contain ``search term``.
         Results are independent of case and spaces in the channel name.
@@ -228,31 +234,22 @@ class OpenFile:
         """
         search_term = str(search_term).upper().replace(" ", "")
 
-        ind_chg_ch = []
-        for j in range(len(self._xml_chgs)):
-            chs = self._channels_xml(j)
+        matched_channels = []
+        channel_group_ids = {v: i for i, v in enumerate(x.get("id") for x in self._xml_chgs)}
 
-            if search_term == "":
-                found_terms = [
-                    ch.findtext("name") for ch in chs if ch.findtext("name") is None
-                ]
-            else:
-                found_terms = [
-                    ch.findtext("name")
-                    for ch in chs
-                    if ch.findtext("name") is not None
-                    and ch.findtext("name")
-                    .upper()
-                    .replace(" ", "")
-                    .find(str(search_term))
-                    >= 0
-                ]
+        for channel in self._root.findall(".//tdm_channel"):
+            channel_name = channel.find("name").text
+            if channel_name:
+                group_uri = re.findall(r'id\("(.+?)"\)', channel.find("group").text)
+                group_id = channel_group_ids.get(group_uri[0])
+                channels = self._get_channels(group_id)
 
-            for name in found_terms:
-                i = [ch.findtext("name") for ch in chs].index(name)
-                ind_chg_ch.append((name, j, i))
+                channel_id = channels.get(channel.get("id"))
 
-        return ind_chg_ch
+                if channel_name.upper().replace(" ", "").find(search_term) >= 0:
+                    matched_channels.append((channel_name, group_id, channel_id))
+
+        return matched_channels
 
     def channel(self, channel_group, channel, occurrence=0, ch_occurrence=0):
         """Returns a data channel by its channel group and channel index.

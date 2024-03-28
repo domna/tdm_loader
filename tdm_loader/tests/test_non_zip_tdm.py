@@ -204,7 +204,9 @@ def test_channel_search(tdm_file):
         ("Float as Float", 0, 1),
     ]
 
-    assert tdm_file.channel_search("") == []
+    assert tdm_file.channel_search("") == [('Float_4_Integers', 0, 0),
+                                           ('Float as Float', 0, 1),
+                                           ('Integer32_with_max_min', 0, 2)]
 
 
 # pylint: disable=redefined-outer-name
